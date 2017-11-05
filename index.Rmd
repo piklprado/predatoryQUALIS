@@ -31,15 +31,15 @@ source("verifica_predadores_qualis.R")
 
 # Estatísticas descritivas
 
-* Lista final de periódicos potencialmente predadores que usei 
+* Lista final de periódicos potencialmente predatórios que usei 
 tem total de `r nrow(beals)+ nrow(sc.bealsp)` títulos, sendo  `r nrow(beals)` standalone 
 e outros `r nrow(sc.bealsp)` indexados na SCOPUS.
-* Entre os potenciais predadores que constam na SCOPUS, `r sum(sc.bealsp$cancelled)` foram cancelados da base em 2017. 
+* Entre os potenciais predatórios que constam na SCOPUS, `r sum(sc.bealsp$cancelled)` foram cancelados da base em 2017. 
 Uma nota na [planilha](./Scopus_Source_List.xlsx) de dados que baixei da SCOPUS informa que estes títulos *"do not meet the Scopus quality criteria anymore and therefore Scopus discontinued the forward capturing"*.
 * A base QUALIS 2013-2016 tem `r length(unique(qualis2$titulo.abr))` titulos, dos quais `r nrow(pred.titles)` 
 (`r round(100*nrow(pred.titles)/length(unique(qualis2$titulo.abr)),1)`%) 
-estão na lista de potenciais predadores definido acima.
-* Os periódicos potencialmente predadores presentes na QUALIS correspondem a 
+estão na lista de potenciais predatórios definido acima.
+* Os periódicos potencialmente predatórios presentes na QUALIS correspondem a 
 `r round(100*nrow(pred.titles)/(nrow(beals)+ nrow(sc.bealsp)),1)`% da lista usada.
 
 ## Áreas e suas divisões
@@ -57,7 +57,7 @@ kable(areas[order(areas$colegio,areas$grande.area, areas$res.area),],
 
 ## Números por área de avaliação
 
-A proporção de títulos potencialmente predadores por área varia em uma ordem de grandeza, 
+A proporção de títulos potencialmente predatórios por área varia em uma ordem de grandeza, 
 o que indica tendências diversas dos programas de cada área em publicar nestes periódicos:
 
 ```{r numeros por area}
@@ -65,17 +65,17 @@ tmp <- n.pred2
 tmp$ppred <- round(100*tmp$tot.pred/tmp$tot,2)
 kable(tmp[order(tmp$ppred),c("area","tot","tot.pred","ppred")],
       col.names=c("Área", "Total", "Pot. Pred.", "% Pred."), row.names=FALSE,
-      caption="Número de periódicos e de potencialmente predadores, por área de avaliação. As área estão em ordem crescente da proporção de potenciais predadores")
+      caption="Número de periódicos e de potencialmente predatórios, por área de avaliação. As área estão em ordem crescente da proporção de potenciais predatórios")
 ```
 
-# Distribuição dos predadores nos estratos QUALIS
+# Distribuição dos predatórios nos estratos QUALIS
 
 Em tese, o estrato C do QUALIS é destinado aos periódicos que não devem ser considerados na avaliação. Muitas áreas
 explicitam que incluem neste estrato periódicos que não seguem boas práticas editoriais, em alguns casos citando 
 os parâmetros de boas práticas da COPE (https://publicationethics.org/).[^1] 
 
-No entanto, `r sum(pred.titles$estrato.max!="C")` dos `r nrow(pred.titles)` periódicos predadores no QUALIS foram classificados
-nos estratos A e B por pelo menos uma área. Periódicos potenciais predadores estão presentes em todos os estratos, 
+No entanto, `r sum(pred.titles$estrato.max!="C")` dos `r nrow(pred.titles)` periódicos predatórios no QUALIS foram classificados
+nos estratos A e B por pelo menos uma área. Periódicos potenciais predatórios estão presentes em todos os estratos, 
 como mostra a tabela a seguir:
 
 
@@ -86,13 +86,13 @@ pred.area %>%
               pred.p.min = 100*min(all.pred/total),
               pred.p.max = 100*max(all.pred/total)) %>%
     kable(col.names=c("Estrato", "Média", "Mínimo", "Máximo"), digits=1,
-          caption= "Percentual de predadores entre periódicos em cada estrato QUALIS. Indicados a média do percentual sobre as 49 áreas de avaliação, bem como os percentuais mínimos e máximos.")
+          caption= "Percentual de predatórios entre periódicos em cada estrato QUALIS. Indicados a média do percentual sobre as 49 áreas de avaliação, bem como os percentuais mínimos e máximos.")
     
 ```
 
 # Probabilidade de classificação de um predador no estrato QUALIS C
 
-Há grande variação entre as áreas quanto à proporção de potenciais predadores
+Há grande variação entre as áreas quanto à proporção de potenciais predatórios
 classificados no estrato C:
 
 
@@ -103,7 +103,7 @@ tmp <- merge(tmp,areas, by="area")
 tmp$propC <- round(100*tmp$C/tmp$tot.pred,1)
 kable(tmp[order(tmp$grande.area,tmp$propC),c("grande.area","area","tot.pred","propC")],
       col.names=c("Gde Área", "Área", "Total", "% em C"), row.names=FALSE,
-      caption="Número de periódicos potencialmente predadores e percentual destes classificados no estrato QUALIS C, por área de avaliação. As áreas estão agregadas por grande área e então ordenadas pela proporção de potenciais predadores classificados no estrato C")
+      caption="Número de periódicos potencialmente predatórios e percentual destes classificados no estrato QUALIS C, por área de avaliação. As áreas estão agregadas por grande área e então ordenadas pela proporção de potenciais predatórios classificados no estrato C")
 ```
 
 ## Congruência da avaliação entre áreas
@@ -113,13 +113,13 @@ Dos `r nrow(pred.titles)` periódicos potencialmente predatórios que encontramo
 Destes, apenas `r round(100*with(pred.titles, sum(N>1&estrato.max=="C")/sum(pred.titles$N>1)),1)`% foram classificados no estrato "C" por todas as áreas que os avaliaram. Por outro lado, a maioria 
 (`r 100*round(with(pred.titles, sum(N>1&estrato.min=="C")/sum(pred.titles$N>1)),1)`%) foi classificada no estrato C
 por pelo menos uma das áreas que os avaliou. A seguir a matriz de concordância entre áreas,
-para os periódicos potencialmente predadores avaliados por mais de uma área:
+para os periódicos potencialmente predatórios avaliados por mais de uma área:
 
 
 ```{r matriz concordancia}
 kable(
     with(pred.titles[pred.titles$N>1,], table (estrato.min, estrato.max)),
-    caption=("Melhor (colunas) e pior (linhas) classificação dos periódicos potencialmente predadores que estão na base QUALIS e que foram avaliados por mais de uma área.")
+    caption=("Melhor (colunas) e pior (linhas) classificação dos periódicos potencialmente predatórios que estão na base QUALIS e que foram avaliados por mais de uma área.")
     )
 ```
 
@@ -145,10 +145,10 @@ kable(Seltab2, col.names=c("AICc", "Delta-AICc", "df", "Evidence weights"))
 
 Ou seja, há tanta variação mesmo dentro
 de cada grande área e colégio que nenhum nível superior de classificação prevê bem
-a probabilidade de uma área classificar predadores no estrato C.
+a probabilidade de uma área classificar predatórios no estrato C.
 
 A seguir os valores dessas proporções e seus intervalos de confiança,
-para as áreas que tinham pelo menos cinco periódicos potencialmente predadores.
+para as áreas que tinham pelo menos cinco periódicos potencialmente predatórios.
 
 
 ```{r dotplot proportions, fig.height=6}
@@ -172,9 +172,9 @@ tmp %>%
 
 * Uma proporção pequena do total de periódicos é potencialmente predadora. No entanto, a lista que usei não está completa,
 pois são os standalone + os de editoras suspeitas que estão no SCOPUS. Ainda assim, me parece pouco provável que a proporção real
-de títulos potencialmente predadores nos quais a comundidade publica chegue a 5%. Por outro lado, seria preciso avaliar a proporçãod a produção está nestes periódicos. Mais importante, apesar de baixa a proporção mostra que na maioria das áreas há pessoas que publicaram nestes veículos.
-* Se a proporção de potenciais predadores em relação ao total de títulos não é alarmante, a proporção que não é classificada no estrato C impressiona - a mediana deste proporção entre as áreas é `r round(median(tmp$C/tmp$tot.pred),3)`. Ou seja, na maioria da áreas mais da metade do títulos potencialmente predadores não são descartados da avaliação.
-* Outro ponto importante é a grande heterogeneidade das áreas quanto a esta "detecção de predadores". Apesar disso, não há uma tendência clara entre agrupamentos dessa áreas, como grandes áreas, colégios ou áreas mais aplicadas e bássicas. Isso acontece que porque em quase todos estes grupos há pelo menos uma área que foge ao padrão. Por exemplo, nas Agrárias, que têm em geral detecção baixa, Alimentos mostra valores altos. Já entre as Engenharias que têm valores mais altos, a Engenharia II é discrepante. 
+de títulos potencialmente predatórios nos quais a comundidade publica chegue a 5%. Por outro lado, seria preciso avaliar a proporçãod a produção está nestes periódicos. Mais importante, apesar de baixa a proporção mostra que na maioria das áreas há pessoas que publicaram nestes veículos.
+* Se a proporção de potenciais predatórios em relação ao total de títulos não é alarmante, a proporção que não é classificada no estrato C impressiona - a mediana deste proporção entre as áreas é `r round(median(tmp$C/tmp$tot.pred),3)`. Ou seja, na maioria da áreas mais da metade do títulos potencialmente predatórios não são descartados da avaliação.
+* Outro ponto importante é a grande heterogeneidade das áreas quanto a esta "detecção de predatórios". Apesar disso, não há uma tendência clara entre agrupamentos dessa áreas, como grandes áreas, colégios ou áreas mais aplicadas e bássicas. Isso acontece que porque em quase todos estes grupos há pelo menos uma área que foge ao padrão. Por exemplo, nas Agrárias, que têm em geral detecção baixa, Alimentos mostra valores altos. Já entre as Engenharias que têm valores mais altos, a Engenharia II é discrepante. 
 * Minha avaliação é que o sistema é muito vulnerável a periódicos predatórios. A parte mais interessante a discutir são as razões. Lendo alguns documentos de área fiquei com a impressão que os critérios de classificação nos estratos das áreas não são suficientes para detectar predatórios, por duas razões principais: (i) critério para estratos altos focado no fator de impacto e (ii) critérios para estrato médio focado em presença em bases de indexação, número de artigos da área na revista e critérios subjetivos.
 * No primeiro caso, em geral os estratos mais altos são definidos por ter fator de impacto medido pelo JCR nos quartis mais altos de impacto dos periódicos da área. Isso pode excluir muitos predatórios, mas alguns que entraram na lista justamente por práticas questionáveis para aumentar o fator de impacto. Dois casos famosos são *Oncotarget* e *Aging*, ambos da tal Impact Journals , editados por Mikhail V. Blagosklonnye. A página da editora é vazia (http://www.impactjournals.com/) e  há fortes indícios de que estes periódicos usem práticas condenáveis para aumentar impacto, sob o comando de Blagosklonnye [^2]. Estes dois periódicos e mais um da mesma editora, *Genes & Cancer* são A1 de várias áreas das Ciências da Vida. Seria legal ter algum exemplo análogo para exatas
 * No segundo caso, o critério de impacto é substituído ou ponderado pela mera presença em certas bases bibliográficas, além da WoS. SCOPUS, PubMed e Scielo são alguns exemplos. A presença de periódicos predatórios mesmo em bases como a SCOPUS indica que este critério não é probelmático. Reforça este argumento que cerca de 30% dos títulos de editoras apontadas como predatórias pelo Bealls foram "descontinuados" da SCOPUS em 2017. Muitas áreas também usam como critério adicional para pontuar no QUALIS o quanto a área publica no periódico, o que evidentemente tem potencial para retroalimentar o uso de periódicos predatórios. Por fim, há um monte de critérios mais subjetivos de importância dos periódicos, e que muitas vezes não estão claros.

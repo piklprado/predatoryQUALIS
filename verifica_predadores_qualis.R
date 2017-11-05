@@ -213,4 +213,4 @@ pred.titles[pred.titles$N>1&pred.titles$NC==0,]
 sum(pred.titles$N>1&pred.titles$NC==0)
 100*sum(pred.titles$N>1&pred.titles$NC==0)/nrow(pred.titles) 
 
-length(unique(qualis2$titulo.abr)
+length(unique(qualis2$titulo.abr))
