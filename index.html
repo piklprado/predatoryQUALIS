@@ -407,13 +407,14 @@ $(document).ready(function () {
 <h2>Números por área de avaliação</h2>
 <p>A proporção de títulos potencialmente predatórios por área varia em uma ordem de grandeza, o que indica tendências diversas dos programas de cada área em publicar nestes periódicos:</p>
 <table>
-<caption>Número de periódicos e de potencialmente predatórios, por área de avaliação. As área estão em ordem crescente da proporção de potenciais predatórios</caption>
+<caption>Número de periódicos e de potencialmente predatórios, por área de avaliação. Também indicadas os percentuais do total de títulos potencialmente predatórios e potencialmente predatórios classificados nos estratos A e B. As área estão em ordem crescente da proporção de potenciais predatórios classificados nos estratos A ou B.</caption>
 <thead>
 <tr class="header">
 <th align="left">Área</th>
 <th align="right">Total</th>
 <th align="right">Pot. Pred.</th>
 <th align="right">% Pred.</th>
+<th align="right">%Pred.A-B</th>
 </tr>
 </thead>
 <tbody>
@@ -422,294 +423,343 @@ $(document).ready(function () {
 <td align="right">2155</td>
 <td align="right">1</td>
 <td align="right">0.05</td>
+<td align="right">0.05</td>
+</tr>
+<tr class="even">
+<td align="left">LETRAS / LINGUÍSTICA</td>
+<td align="right">2720</td>
+<td align="right">4</td>
+<td align="right">0.15</td>
+<td align="right">0.07</td>
+</tr>
+<tr class="odd">
+<td align="left">DIREITO</td>
+<td align="right">2111</td>
+<td align="right">4</td>
+<td align="right">0.19</td>
+<td align="right">0.09</td>
 </tr>
 <tr class="even">
 <td align="left">FILOSOFIA</td>
 <td align="right">1116</td>
 <td align="right">1</td>
 <td align="right">0.09</td>
-</tr>
-<tr class="odd">
-<td align="left">LETRAS / LINGUÍSTICA</td>
-<td align="right">2720</td>
-<td align="right">4</td>
-<td align="right">0.15</td>
-</tr>
-<tr class="even">
-<td align="left">DIREITO</td>
-<td align="right">2111</td>
-<td align="right">4</td>
-<td align="right">0.19</td>
-</tr>
-<tr class="odd">
-<td align="left">ARTES / MÚSICA</td>
-<td align="right">889</td>
-<td align="right">2</td>
-<td align="right">0.22</td>
-</tr>
-<tr class="even">
-<td align="left">CIÊNCIAS DA RELIGIĂO E TEOLOGIA</td>
-<td align="right">412</td>
-<td align="right">1</td>
-<td align="right">0.24</td>
+<td align="right">0.09</td>
 </tr>
 <tr class="odd">
 <td align="left">SOCIOLOGIA</td>
 <td align="right">1987</td>
 <td align="right">5</td>
 <td align="right">0.25</td>
+<td align="right">0.10</td>
 </tr>
 <tr class="even">
-<td align="left">ANTROPOLOGIA / ARQUEOLOGIA</td>
-<td align="right">1301</td>
-<td align="right">4</td>
-<td align="right">0.31</td>
+<td align="left">ARTES / MÚSICA</td>
+<td align="right">889</td>
+<td align="right">2</td>
+<td align="right">0.22</td>
+<td align="right">0.11</td>
 </tr>
 <tr class="odd">
-<td align="left">ADMINISTRAÇĂO PÚBLICA E DE EMPRESAS, CIÊNCIAS CONTÁBEIS E TURISMO</td>
-<td align="right">3089</td>
-<td align="right">13</td>
-<td align="right">0.42</td>
-</tr>
-<tr class="even">
 <td align="left">COMUNICAÇĂO E INFORMAÇĂO</td>
 <td align="right">1640</td>
 <td align="right">7</td>
 <td align="right">0.43</td>
-</tr>
-<tr class="odd">
-<td align="left">EDUCAÇĂO</td>
-<td align="right">3619</td>
-<td align="right">21</td>
-<td align="right">0.58</td>
+<td align="right">0.12</td>
 </tr>
 <tr class="even">
+<td align="left">SERVIÇO SOCIAL</td>
+<td align="right">739</td>
+<td align="right">6</td>
+<td align="right">0.81</td>
+<td align="right">0.14</td>
+</tr>
+<tr class="odd">
 <td align="left">GEOCIÊNCIAS</td>
 <td align="right">1368</td>
 <td align="right">8</td>
 <td align="right">0.58</td>
-</tr>
-<tr class="odd">
-<td align="left">GEOGRAFIA</td>
-<td align="right">1576</td>
-<td align="right">11</td>
-<td align="right">0.70</td>
-</tr>
-<tr class="even">
-<td align="left">PSICOLOGIA</td>
-<td align="right">2677</td>
-<td align="right">19</td>
-<td align="right">0.71</td>
-</tr>
-<tr class="odd">
-<td align="left">CIÊNCIA POLÍTICA E RELAÇƠES INTERNACIONAIS</td>
-<td align="right">1344</td>
-<td align="right">10</td>
-<td align="right">0.74</td>
+<td align="right">0.22</td>
 </tr>
 <tr class="even">
 <td align="left">MATEMÁTICA / PROBABILIDADE E ESTATÍSTICA</td>
 <td align="right">1335</td>
 <td align="right">10</td>
 <td align="right">0.75</td>
+<td align="right">0.22</td>
 </tr>
 <tr class="odd">
-<td align="left">SERVIÇO SOCIAL</td>
-<td align="right">739</td>
-<td align="right">6</td>
-<td align="right">0.81</td>
+<td align="left">ANTROPOLOGIA / ARQUEOLOGIA</td>
+<td align="right">1301</td>
+<td align="right">4</td>
+<td align="right">0.31</td>
+<td align="right">0.23</td>
 </tr>
 <tr class="even">
-<td align="left">SAÚDE COLETIVA</td>
-<td align="right">3325</td>
-<td align="right">34</td>
-<td align="right">1.02</td>
+<td align="left">CIÊNCIAS DA RELIGIĂO E TEOLOGIA</td>
+<td align="right">412</td>
+<td align="right">1</td>
+<td align="right">0.24</td>
+<td align="right">0.24</td>
 </tr>
 <tr class="odd">
-<td align="left">ASTRONOMIA / FÍSICA</td>
-<td align="right">1683</td>
-<td align="right">19</td>
-<td align="right">1.13</td>
-</tr>
-<tr class="even">
-<td align="left">ENSINO</td>
-<td align="right">2597</td>
-<td align="right">33</td>
-<td align="right">1.27</td>
-</tr>
-<tr class="odd">
-<td align="left">INTERDISCIPLINAR</td>
-<td align="right">9629</td>
-<td align="right">130</td>
-<td align="right">1.35</td>
-</tr>
-<tr class="even">
-<td align="left">ECONOMIA</td>
-<td align="right">1466</td>
-<td align="right">20</td>
-<td align="right">1.36</td>
-</tr>
-<tr class="odd">
-<td align="left">CIÊNCIAS AMBIENTAIS</td>
-<td align="right">4110</td>
-<td align="right">57</td>
-<td align="right">1.39</td>
-</tr>
-<tr class="even">
-<td align="left">ARQUITETURA, URBANISMO E DESIGN</td>
-<td align="right">1118</td>
-<td align="right">16</td>
-<td align="right">1.43</td>
-</tr>
-<tr class="odd">
-<td align="left">PLANEJAMENTO URBANO E REGIONAL / DEMOGRAFIA</td>
-<td align="right">1745</td>
-<td align="right">27</td>
-<td align="right">1.55</td>
-</tr>
-<tr class="even">
-<td align="left">EDUCAÇĂO FÍSICA</td>
-<td align="right">1978</td>
-<td align="right">31</td>
-<td align="right">1.57</td>
-</tr>
-<tr class="odd">
-<td align="left">ENFERMAGEM</td>
-<td align="right">1656</td>
-<td align="right">27</td>
-<td align="right">1.63</td>
+<td align="left">GEOGRAFIA</td>
+<td align="right">1576</td>
+<td align="right">11</td>
+<td align="right">0.70</td>
+<td align="right">0.32</td>
 </tr>
 <tr class="even">
 <td align="left">BIODIVERSIDADE</td>
 <td align="right">3293</td>
 <td align="right">54</td>
 <td align="right">1.64</td>
+<td align="right">0.36</td>
 </tr>
 <tr class="odd">
-<td align="left">MEDICINA III</td>
-<td align="right">1761</td>
-<td align="right">29</td>
-<td align="right">1.65</td>
+<td align="left">SAÚDE COLETIVA</td>
+<td align="right">3325</td>
+<td align="right">34</td>
+<td align="right">1.02</td>
+<td align="right">0.39</td>
 </tr>
 <tr class="even">
-<td align="left">MEDICINA I</td>
-<td align="right">4448</td>
-<td align="right">75</td>
-<td align="right">1.69</td>
+<td align="left">EDUCAÇĂO</td>
+<td align="right">3619</td>
+<td align="right">21</td>
+<td align="right">0.58</td>
+<td align="right">0.41</td>
+</tr>
+<tr class="odd">
+<td align="left">ADMINISTRAÇĂO PÚBLICA E DE EMPRESAS, CIÊNCIAS CONTÁBEIS E TURISMO</td>
+<td align="right">3089</td>
+<td align="right">13</td>
+<td align="right">0.42</td>
+<td align="right">0.42</td>
+</tr>
+<tr class="even">
+<td align="left">CIÊNCIA DE ALIMENTOS</td>
+<td align="right">1364</td>
+<td align="right">41</td>
+<td align="right">3.01</td>
+<td align="right">0.51</td>
+</tr>
+<tr class="odd">
+<td align="left">CIÊNCIA POLÍTICA E RELAÇƠES INTERNACIONAIS</td>
+<td align="right">1344</td>
+<td align="right">10</td>
+<td align="right">0.74</td>
+<td align="right">0.52</td>
+</tr>
+<tr class="even">
+<td align="left">ASTRONOMIA / FÍSICA</td>
+<td align="right">1683</td>
+<td align="right">19</td>
+<td align="right">1.13</td>
+<td align="right">0.53</td>
 </tr>
 <tr class="odd">
 <td align="left">CIÊNCIAS BIOLÓGICAS II</td>
 <td align="right">3417</td>
 <td align="right">58</td>
 <td align="right">1.70</td>
+<td align="right">0.56</td>
 </tr>
 <tr class="even">
-<td align="left">MEDICINA II</td>
-<td align="right">4417</td>
-<td align="right">75</td>
-<td align="right">1.70</td>
+<td align="left">PSICOLOGIA</td>
+<td align="right">2677</td>
+<td align="right">19</td>
+<td align="right">0.71</td>
+<td align="right">0.60</td>
 </tr>
 <tr class="odd">
 <td align="left">ENGENHARIAS I</td>
 <td align="right">2097</td>
 <td align="right">40</td>
 <td align="right">1.91</td>
-</tr>
-<tr class="even">
-<td align="left">CIÊNCIAS AGRÁRIAS I</td>
-<td align="right">3374</td>
-<td align="right">66</td>
-<td align="right">1.96</td>
-</tr>
-<tr class="odd">
-<td align="left">CIÊNCIAS BIOLÓGICAS I</td>
-<td align="right">3400</td>
-<td align="right">68</td>
-<td align="right">2.00</td>
-</tr>
-<tr class="even">
-<td align="left">ZOOTECNIA / RECURSOS PESQUEIROS</td>
-<td align="right">1389</td>
-<td align="right">28</td>
-<td align="right">2.02</td>
-</tr>
-<tr class="odd">
-<td align="left">CIÊNCIAS BIOLÓGICAS III</td>
-<td align="right">2119</td>
-<td align="right">43</td>
-<td align="right">2.03</td>
+<td align="right">0.62</td>
 </tr>
 <tr class="even">
 <td align="left">CIÊNCIA DA COMPUTAÇĂO</td>
 <td align="right">1696</td>
 <td align="right">39</td>
 <td align="right">2.30</td>
+<td align="right">0.65</td>
 </tr>
 <tr class="odd">
-<td align="left">NUTRIÇĂO</td>
-<td align="right">1256</td>
-<td align="right">29</td>
-<td align="right">2.31</td>
+<td align="left">CIÊNCIAS BIOLÓGICAS I</td>
+<td align="right">3400</td>
+<td align="right">68</td>
+<td align="right">2.00</td>
+<td align="right">0.65</td>
 </tr>
 <tr class="even">
-<td align="left">BIOTECNOLOGIA</td>
-<td align="right">3827</td>
-<td align="right">90</td>
-<td align="right">2.35</td>
+<td align="left">CIÊNCIAS AMBIENTAIS</td>
+<td align="right">4110</td>
+<td align="right">57</td>
+<td align="right">1.39</td>
+<td align="right">0.71</td>
 </tr>
 <tr class="odd">
-<td align="left">MEDICINA VETERINÁRIA</td>
-<td align="right">1871</td>
-<td align="right">44</td>
-<td align="right">2.35</td>
-</tr>
-<tr class="even">
-<td align="left">ODONTOLOGIA</td>
-<td align="right">1998</td>
-<td align="right">48</td>
-<td align="right">2.40</td>
-</tr>
-<tr class="odd">
-<td align="left">ENGENHARIAS IV</td>
-<td align="right">2290</td>
-<td align="right">62</td>
-<td align="right">2.71</td>
-</tr>
-<tr class="even">
-<td align="left">MATERIAIS</td>
-<td align="right">1503</td>
-<td align="right">41</td>
-<td align="right">2.73</td>
-</tr>
-<tr class="odd">
-<td align="left">FARMÁCIA</td>
-<td align="right">2822</td>
-<td align="right">79</td>
-<td align="right">2.80</td>
-</tr>
-<tr class="even">
 <td align="left">ENGENHARIAS III</td>
 <td align="right">3357</td>
 <td align="right">99</td>
 <td align="right">2.95</td>
+<td align="right">0.77</td>
+</tr>
+<tr class="even">
+<td align="left">ARQUITETURA, URBANISMO E DESIGN</td>
+<td align="right">1118</td>
+<td align="right">16</td>
+<td align="right">1.43</td>
+<td align="right">0.81</td>
 </tr>
 <tr class="odd">
-<td align="left">CIÊNCIA DE ALIMENTOS</td>
-<td align="right">1364</td>
-<td align="right">41</td>
-<td align="right">3.01</td>
+<td align="left">ENSINO</td>
+<td align="right">2597</td>
+<td align="right">33</td>
+<td align="right">1.27</td>
+<td align="right">0.81</td>
 </tr>
 <tr class="even">
 <td align="left">QUÍMICA</td>
 <td align="right">2392</td>
 <td align="right">72</td>
 <td align="right">3.01</td>
+<td align="right">0.84</td>
 </tr>
 <tr class="odd">
+<td align="left">ENGENHARIAS IV</td>
+<td align="right">2290</td>
+<td align="right">62</td>
+<td align="right">2.71</td>
+<td align="right">0.87</td>
+</tr>
+<tr class="even">
+<td align="left">ECONOMIA</td>
+<td align="right">1466</td>
+<td align="right">20</td>
+<td align="right">1.36</td>
+<td align="right">0.89</td>
+</tr>
+<tr class="odd">
+<td align="left">MEDICINA I</td>
+<td align="right">4448</td>
+<td align="right">75</td>
+<td align="right">1.69</td>
+<td align="right">0.90</td>
+</tr>
+<tr class="even">
+<td align="left">MEDICINA II</td>
+<td align="right">4417</td>
+<td align="right">75</td>
+<td align="right">1.70</td>
+<td align="right">0.91</td>
+</tr>
+<tr class="odd">
+<td align="left">BIOTECNOLOGIA</td>
+<td align="right">3827</td>
+<td align="right">90</td>
+<td align="right">2.35</td>
+<td align="right">0.94</td>
+</tr>
+<tr class="even">
+<td align="left">EDUCAÇĂO FÍSICA</td>
+<td align="right">1978</td>
+<td align="right">31</td>
+<td align="right">1.57</td>
+<td align="right">1.01</td>
+</tr>
+<tr class="odd">
+<td align="left">CIÊNCIAS BIOLÓGICAS III</td>
+<td align="right">2119</td>
+<td align="right">43</td>
+<td align="right">2.03</td>
+<td align="right">1.04</td>
+</tr>
+<tr class="even">
+<td align="left">INTERDISCIPLINAR</td>
+<td align="right">9629</td>
+<td align="right">130</td>
+<td align="right">1.35</td>
+<td align="right">1.05</td>
+</tr>
+<tr class="odd">
+<td align="left">MEDICINA III</td>
+<td align="right">1761</td>
+<td align="right">29</td>
+<td align="right">1.65</td>
+<td align="right">1.08</td>
+</tr>
+<tr class="even">
+<td align="left">ENFERMAGEM</td>
+<td align="right">1656</td>
+<td align="right">27</td>
+<td align="right">1.63</td>
+<td align="right">1.15</td>
+</tr>
+<tr class="odd">
+<td align="left">FARMÁCIA</td>
+<td align="right">2822</td>
+<td align="right">79</td>
+<td align="right">2.80</td>
+<td align="right">1.24</td>
+</tr>
+<tr class="even">
+<td align="left">PLANEJAMENTO URBANO E REGIONAL / DEMOGRAFIA</td>
+<td align="right">1745</td>
+<td align="right">27</td>
+<td align="right">1.55</td>
+<td align="right">1.26</td>
+</tr>
+<tr class="odd">
+<td align="left">ZOOTECNIA / RECURSOS PESQUEIROS</td>
+<td align="right">1389</td>
+<td align="right">28</td>
+<td align="right">2.02</td>
+<td align="right">1.44</td>
+</tr>
+<tr class="even">
+<td align="left">CIÊNCIAS AGRÁRIAS I</td>
+<td align="right">3374</td>
+<td align="right">66</td>
+<td align="right">1.96</td>
+<td align="right">1.60</td>
+</tr>
+<tr class="odd">
+<td align="left">NUTRIÇĂO</td>
+<td align="right">1256</td>
+<td align="right">29</td>
+<td align="right">2.31</td>
+<td align="right">1.75</td>
+</tr>
+<tr class="even">
+<td align="left">ODONTOLOGIA</td>
+<td align="right">1998</td>
+<td align="right">48</td>
+<td align="right">2.40</td>
+<td align="right">1.80</td>
+</tr>
+<tr class="odd">
+<td align="left">MEDICINA VETERINÁRIA</td>
+<td align="right">1871</td>
+<td align="right">44</td>
+<td align="right">2.35</td>
+<td align="right">1.98</td>
+</tr>
+<tr class="even">
 <td align="left">ENGENHARIAS II</td>
 <td align="right">2362</td>
 <td align="right">81</td>
 <td align="right">3.43</td>
+<td align="right">2.12</td>
+</tr>
+<tr class="odd">
+<td align="left">MATERIAIS</td>
+<td align="right">1503</td>
+<td align="right">41</td>
+<td align="right">2.73</td>
+<td align="right">2.33</td>
 </tr>
 </tbody>
 </table>
@@ -1297,7 +1347,7 @@ $(document).ready(function () {
 
 <div id="postamble" data-toggle="wy-nav-shift" class="status">
 <p class="author"><span class="glyphicon glyphicon-user"></span> Paulo Inácio Prado and Roberto Kraenkel</p>
-<p class="date"><span class="glyphicon glyphicon-calendar"></span> 05 de novembro de 2017</p>
+<p class="date"><span class="glyphicon glyphicon-calendar"></span> 06 de novembro de 2017</p>
 </div>
 
 

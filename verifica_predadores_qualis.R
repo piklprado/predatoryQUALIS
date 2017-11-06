@@ -75,7 +75,27 @@ qualis2$predp <- qualis2$titulo.abr %in% sc.bealsp$title
 qualis2$predp2 <- qualis2$titulo.abr %in% sc.bealsp$title[sc.bealsp$cancelled]
 ## Title in at least one list
 qualis2$all.pred <- qualis2$pred|qualis2$predp
-
+## DOAJ list of removed titles##
+doaj <- read.csv2("doaj_removed.csv", as.is=TRUE)
+doaj$title <- toupper(doaj$title)
+doaj.filter <- c("Suspected editorial misconduct by publisher",
+                 "Journal not adhering to Best Practice",
+                 "ISSN not registered",
+                 "Journal not adhering to Best practice",
+                 "Malicious website",
+                 "Journal not adhering to Best practice (one url per issue)",
+                 "Journal not adhering to Best practice and issn dead",
+                 "Reapp. not adhering to Best practice",
+                 "Invalid ISSN",
+                 "No licence , peer review inadequate",
+                 "Not in the issn database",
+                 "use of fake impact factor",
+                 "Journal not adhering to Best Practice\n",
+                 "BMC stopped publishing",
+                 "the issn 20888708 given by editor leads to another journal")
+qualis2$doaj <- qualis2$titulo.abr %in% doaj$title[doaj$reason%in%doaj.filter]
+## Beals x DOAJ listing
+table(qualis2$doaj, qualis2$pred|qualis2$predp)
 ################################################################################
 ## Number of predatory journals in each area and their ranking (A to C strata)
 ################################################################################
@@ -214,3 +234,24 @@ sum(pred.titles$N>1&pred.titles$NC==0)
 100*sum(pred.titles$N>1&pred.titles$NC==0)/nrow(pred.titles) 
 
 length(unique(qualis2$titulo.abr))
+
+## For DOAJ
+pred.titles2 <- 
+    qualis2 %>%
+    filter(doaj==TRUE) %>%
+    group_by(titulo.abr) %>%
+    summarize(N=n(), standalone=as.logical(max(pred)), NC = sum(estrato=="C"),
+              estrato.max=levels(estrato)[min(as.numeric(estrato))],
+              estrato.min=levels(estrato)[max(as.numeric(estrato))])%>%
+    as.data.frame()
+## Some figures
+## Total of predadory journals in QUALIS
+nrow(pred.titles2)
+## Number of predatory journals evaluated by more than one area
+sum(pred.titles2$N>1)
+## Percentages of total number of journals in Qualis
+100*nrow(pred.titles2)/length(unique(qualis2$titulo.abr))
+## Checking against Beall's list
+sum(pred.titles2$titulo.abr %in% pred.titles$titulo.abr)
+pred.titles2[!(pred.titles2$titulo.abr %in% pred.titles$titulo.abr),] ## many legitimate titles like Caderno CEDES ...
+## Maybe check titles in Beals list which are not in the Whitelist of DOAJ or are in the list of removed of DOAJ

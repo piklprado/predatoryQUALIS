@@ -63,9 +63,10 @@ o que indica tendências diversas dos programas de cada área em publicar nestes
 ```{r numeros por area}
 tmp <- n.pred2
 tmp$ppred <- round(100*tmp$tot.pred/tmp$tot,2)
-kable(tmp[order(tmp$ppred),c("area","tot","tot.pred","ppred")],
-      col.names=c("Área", "Total", "Pot. Pred.", "% Pred."), row.names=FALSE,
-      caption="Número de periódicos e de potencialmente predatórios, por área de avaliação. As área estão em ordem crescente da proporção de potenciais predatórios")
+tmp$ppredAB <- round(100*(tmp$tot.pred-tmp$C)/tmp$tot,2)
+kable(tmp[order(tmp$ppredAB),c("area","tot","tot.pred","ppred", "ppredAB")],
+      col.names=c("Área", "Total", "Pot. Pred.", "% Pred.", "%Pred.A-B"), row.names=FALSE,
+      caption="Número de periódicos e de potencialmente predatórios, por área de avaliação. Também indicadas os percentuais do total de títulos potencialmente predatórios  e potencialmente predatórios classificados nos estratos A e B. As área estão em ordem crescente da proporção de potenciais predatórios classificados nos estratos A ou B.")
 ```
 
 # Distribuição dos predatórios nos estratos QUALIS
