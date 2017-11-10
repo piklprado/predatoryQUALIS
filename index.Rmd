@@ -1,7 +1,8 @@
 ---
 title: "Periódicos potencialmente fradulentos no QUALIS"
 subtitle: "Presença atual e potencial de expansão"
-author: "Paulo Inácio Prado and Roberto Kraenkel"
+author: "Paulo Inácio Prado & Roberto Kraenkel"
+institution: "IB-USP e IFT-UNESP"
 date: "`r format(Sys.time(), '%d de %B de %Y')`"
 output: 
         rmdformats::readthedown:
@@ -31,7 +32,10 @@ que têm potencial de serem fraudulentos ou predatórios. Também buscamos avali
 as chances de um periódico destes ser detectado pelo sistema.
 
 O QUALIS é a classificação de todos os periódicos em que participantes dos programas de pós-graduação
-do Brasil publicam seus artigos. A base é usada na avaliação da produção dos programas, feita pela CAPES.
+do Brasil publicam seus artigos. A base é usada na avaliação da produção dos programas, um dos
+principais critérios para [Avaliação Quadrienal dos Programa de Pós-Graduação](http://avaliacaoquadrienal.capes.gov.br/), 
+feita pela CAPES.
+
 As coordenações de cada área de conhecimento da CAPES são responsáveis por 
 compilar os títulos de todos os periódicos e classificá-los em uma escala de relevância com os níveis
 A1, A2, B1 a B5 e C. Um mesmo título pode receber níveis diferentes em diferentes áreas. Para saber mais veja:
@@ -61,11 +65,12 @@ estão na lista de potenciais predatórios definido acima.
 * Os periódicos potencialmente predatórios presentes na QUALIS correspondem a 
 `r round(100*nrow(pred.titles)/(nrow(beals)+ nrow(sc.bealsp)),1)`% da lista que compilamos.
 
+
 ## Áreas de avaliação CAPES e suas divisões
 
 Na avaliação 2013-2016 os programas foram divididos em `r nrow(areas)` áreas, reunidas
 em `r length(unique(areas$grande.area))` e três colégios (ciências da vida, exatas e humanas).
-Eu também classifiquei cada área em básica ou aplicada:
+A classificação de cada área em básica ou aplicada é nossa, para algumas análises estatísticas (masi abaixo).
 
 ```{r areas}
 kable(areas[order(areas$colegio,areas$grande.area, areas$res.area),],
@@ -188,7 +193,7 @@ tmp %>%
 ```
 
 
-# Pontos para discussão
+# Hipóteses e pontos a discutir
 
 * Uma proporção pequena do total de periódicos é potencialmente predadora. No entanto, a lista de potenciais predadores que compilamos não está completa. Ainda assim, parece pouco provável que a proporção real
 de títulos potencialmente predatórios nos quais os programas de pós-graduação publicam chegue a 5%. 
@@ -217,7 +222,10 @@ Planilhas com dados processados, usados nas análises
 * [Número de periódicos e de potenciais predatórios por área e estrato](./proporcao_pred_estrato_area.csv)
 * [Proporção de potenciais predatórios por área e estrato](./n_predadores_inclusivo_area.csv)
 
+# Contato
 
+* [Paulo Inácio Prado](http://ecologia.ib.usp.br/let/doku.php?id=engl:prado:start), Depto de Ecologia, Instituto de Biociências, USP. <prado@ib.usp.br>
+* [Roberto André Kraenkel](http://www.ift.unesp.br/users/kraenkel/), Instituto de Física Teórica, UNESP. <kraenkel@ift.unesp.br>
 
 [^1]: As dez áreas com maior proporção de títulos potenciais predatórios no estrato C são Engenharias I-IV, Educação Física, Enfermagem, Materiais, Agrárias, Odontologia e Veterinária. Os documentos de avaliação das Engenharias I-III, Materiais e Enfermagem incluem explicitamente este critério de falta boas práticas para classificação no estrato C. A Veterinária usa estrato C na contabilização da produção discente, apesar de sete dos 20 periódicos neste estrato serem potencialmente predatórios. As restantes desta lista não mencionam e aparentemente não usam o estrato C em sua avaliação.
 
