@@ -206,10 +206,10 @@ Mais importante, apesar de baixa a proporção mostra que na maioria das áreas 
 	* No segundo caso, o critério de impacto é substituído ou ponderado pela mera presença em certas bases bibliográficas, além da WoS. SCOPUS, PubMed e Scielo são alguns exemplos. A presença de periódicos predatórios mesmo em bases como a SCOPUS indica que este critério não é probelmático. Reforça este argumento que cerca de 30% dos títulos de editoras apontadas como predatórias por Bealls foram "descontinuados" da SCOPUS em 2017. Muitas áreas também usam como critério adicional para pontuar no QUALIS o quanto a área publica no periódico, o que evidentemente tem potencial para retroalimentar o uso de periódicos predatórios. Por fim, há vários critérios mais subjetivos de importância dos periódicos, e que muitas vezes não estão claros nos documentos de avaliação.
 * Um ponto importante é que a maioria dos periódicos potencialmente predatórios foi avaliada por mais de uma área, sendo que na maioria dos casos pelo menos uma área os classificou como "C". Vale também notar que nos documentos de área ou de avaliação não há menção explícita a nenhum dos critérios do Bealls ou de outros autores e instituições para detectar periódicos predatórios. 
 
-#### Take-home message
+## Take-home message
 Procedimentos de detecção de periódicos predatórios não estão incorporados no QUALIS. Assim, a pequena proporção destes periódicos no total de títulos nos quais os programas de PG brasileiros publicam deve estar mais relacionada a opções destes programas do que da capacidade do sistema coibir ou prevenir isso. Nesta pequena fração a baixa capacidade do sistema de detectar estes periódicos como predatórios indica a vulnerabilidade do QUALIS aos predatórios.
 
-#### Recomendações:
+## Recomendações:
 * Incluir no QUALIS  critérios explícitos de triagem de periódicos potencialmente predatórios; 
 * Exigir das áreas que explicitem seus critérios para identificar predatórios; 
 * Procedimento para verificar discrepâncias quanto à classificação em predatórios entre áreas.
