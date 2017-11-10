@@ -1,6 +1,6 @@
 ---
-title: "Can institutional evaluations spot predatory journals?"
-subtitle: "A case study from QUALIS in Brasil"
+title: "Periódicos potencialmente fradulentos no QUALIS"
+subtitle: "Presença atual e potencial de expansão"
 author: "Paulo Inácio Prado and Roberto Kraenkel"
 date: "`r format(Sys.time(), '%d de %B de %Y')`"
 output: 
@@ -23,26 +23,45 @@ options(formatR.arrow = TRUE,width = 90, cache=TRUE)
 source("verifica_predadores_qualis.R")
 ```
 
+# Apresentação
+
+Este é um relatório dinâmico de um trabalho iniciado em novembro de 2017.
+O objetivo é avaliar a proporção de periódicos listados pelo Sistema QUALIS-CAPES
+que têm potencial de serem fraudulentos ou predatórios. Também buscamos avaliar
+as chances de um periódico destes ser detectado pelo sistema.
+
+O QUALIS é a classificação de todos os periódicos em que participantes dos programas de pós-graduação
+do Brasil publicam seus artigos. A base é usada na avaliação da produção dos programas, feita pela CAPES.
+As coordenações de cada área de conhecimento da CAPES são responsáveis por 
+compilar os títulos de todos os periódicos e classificá-los em uma escala de relevância com os níveis
+A1, A2, B1 a B5 e C. Um mesmo título pode receber níveis diferentes em diferentes áreas. Para saber mais veja:
+
+* Barata, R.C.B. 2016. Dez coisas que você deveria saber sobre o QUALIS. [Revista Bras. de Pós-Graduação.](http://ojs.rbpg.capes.gov.br/index.php/rbpg/article/view/947)
+* [Perguntas frequentes sobre o QUALIS](http://www.capes.gov.br/acessoainformacao/perguntas-frequentes/avaliacao-da-pos-graduacao/7422-qualis), do site da CAPES.
+* [Sobre o QUALIS](https://www.sibi.usp.br/apoio-pesquisador/escrita-publicacao-cientifica/selecao-revistas-publicacao/qualis-periodicos/), da página do Sistema de Bibliotecas da USP.
+
+
 # Bases de dados usadas
 
-* [QUALIS](./areas.csv): classificação de todos os periódicos por cada área, quadriênio 2013-2016 (https://sucupira.capes.gov.br/); 
-* [Bealls' List of Standalone Journals](./beals.csv): de cópia da lista disponível em http://beallslist.weebly.com/;
-* [Periódicos no Scopus de editoras que estão na lista de Bealls](beals_publishers_in_scopus.csv): periódicos incluídos na base Scopus de 2017 (https://www.scopus.com/home.uri) e que são de editoras incluídas nas lista de Bealls.
+* [QUALIS](./areas.csv): classificação de todos os periódicos por cada área, para a avaliação dos programas no quadriênio 2013-2016 (https://sucupira.capes.gov.br/); 
+* Lista de Periódicos com práticas questionáveis criada por Jeffrey Beall. A lista foi tirada do ar[^3] mas há cópias disponíveis em vários sites, (e.g.  http://beallslist.weebly.com/) . Extraímos dessa base de dados:
+  * [Standalone Journals List](./beals.csv): lista de títulos isolados potencialmente predadores, conforme está na base de Beall;
+  * [Periódicos no Scopus de editoras que estão na lista de Bealls](beals_publishers_in_scopus.csv): periódicos incluídos na base Scopus de 2017 (https://www.scopus.com/home.uri) e que são de editoras incluídas nas lista de Bealls.
 
 # Estatísticas descritivas
 
-* Lista final de periódicos potencialmente predatórios que usei 
-tem total de `r nrow(beals)+ nrow(sc.bealsp)` títulos, sendo  `r nrow(beals)` standalone 
+* Nossa lista final de periódicos potencialmente predatórios compilada das bases acima 
+totalizou  `r nrow(beals)+ nrow(sc.bealsp)` títulos, sendo  `r nrow(beals)` *standalone*
 e outros `r nrow(sc.bealsp)` indexados na SCOPUS.
 * Entre os potenciais predatórios que constam na SCOPUS, `r sum(sc.bealsp$cancelled)` foram cancelados da base em 2017. 
-Uma nota na [planilha](./Scopus_Source_List.xlsx) de dados que baixei da SCOPUS informa que estes títulos *"do not meet the Scopus quality criteria anymore and therefore Scopus discontinued the forward capturing"*.
+Uma nota na [planilha](./Scopus_Source_List.xlsx) fornecida pela SCOPUS informa que estes títulos *"do not meet the Scopus quality criteria anymore and therefore Scopus discontinued the forward capturing"*.
 * A base QUALIS 2013-2016 tem `r length(unique(qualis2$titulo.abr))` titulos, dos quais `r nrow(pred.titles)` 
 (`r round(100*nrow(pred.titles)/length(unique(qualis2$titulo.abr)),1)`%) 
 estão na lista de potenciais predatórios definido acima.
 * Os periódicos potencialmente predatórios presentes na QUALIS correspondem a 
-`r round(100*nrow(pred.titles)/(nrow(beals)+ nrow(sc.bealsp)),1)`% da lista usada.
+`r round(100*nrow(pred.titles)/(nrow(beals)+ nrow(sc.bealsp)),1)`% da lista que compilamos.
 
-## Áreas e suas divisões
+## Áreas de avaliação CAPES e suas divisões
 
 Na avaliação 2013-2016 os programas foram divididos em `r nrow(areas)` áreas, reunidas
 em `r length(unique(areas$grande.area))` e três colégios (ciências da vida, exatas e humanas).
@@ -57,7 +76,7 @@ kable(areas[order(areas$colegio,areas$grande.area, areas$res.area),],
 
 ## Números por área de avaliação
 
-A proporção de títulos potencialmente predatórios por área varia em uma ordem de grandeza, 
+A proporção de títulos potencialmente predatórios por área é pequena, mas ainda assim varia em uma ordem de grandeza, 
 o que indica tendências diversas dos programas de cada área em publicar nestes periódicos:
 
 ```{r numeros por area}
@@ -76,7 +95,7 @@ explicitam que incluem neste estrato periódicos que não seguem boas práticas 
 os parâmetros de boas práticas da COPE (https://publicationethics.org/).[^1] 
 
 No entanto, `r sum(pred.titles$estrato.max!="C")` dos `r nrow(pred.titles)` periódicos predatórios no QUALIS foram classificados
-nos estratos A e B por pelo menos uma área. Periódicos potenciais predatórios estão presentes em todos os estratos, 
+nos estratos A e B por pelo menos uma área. Periódicos potenciailmente predatórios estão presentes em todos os estratos, 
 como mostra a tabela a seguir:
 
 
@@ -127,9 +146,9 @@ kable(
 
 ## Estimativas das probabilidades de classificação
 
-Ajustei modelos generalizados lineares (glm) para avaliar se
-a probabilidade de classificar um potencial predadro no estrato C
-dependeria do colégio, grande área ou se a aŕea é de pesquisa bássica/aplicada.
+Ajustamos modelos generalizados lineares (glm) para avaliar se
+a probabilidade de classificar um potencial predador no estrato C
+dependeria do colégio, grande área ou se a aŕea é de pesquisa básica/aplicada.
 O modelo com menor perda de informação (menor AIC) foi o que considera
 apenas o efeito da área de avaliação. 
 
@@ -171,16 +190,16 @@ tmp %>%
 
 # Pontos para discussão
 
-* Uma proporção pequena do total de periódicos é potencialmente predadora. No entanto, a lista que usei não está completa,
-pois são os standalone + os de editoras suspeitas que estão no SCOPUS. Ainda assim, me parece pouco provável que a proporção real
-de títulos potencialmente predatórios nos quais a comundidade publica chegue a 5%. Por outro lado, seria preciso avaliar a proporçãod a produção está nestes periódicos. Mais importante, apesar de baixa a proporção mostra que na maioria das áreas há pessoas que publicaram nestes veículos.
+* Uma proporção pequena do total de periódicos é potencialmente predadora. No entanto, a lista de potenciais predadores que compilamos não está completa. Ainda assim, parece pouco provável que a proporção real
+de títulos potencialmente predatórios nos quais os programas de pós-graduação publicam chegue a 5%. 
+Por outro lado, seria preciso avaliar a proporção da produção está nestes periódicos. 
+Mais importante, apesar de baixa a proporção mostra que na maioria das áreas há pessoas que publicaram nestes veículos.
 * Se a proporção de potenciais predatórios em relação ao total de títulos não é alarmante, a proporção que não é classificada no estrato C impressiona - a mediana deste proporção entre as áreas é `r round(median(tmp$C/tmp$tot.pred),3)`. Ou seja, na maioria da áreas mais da metade do títulos potencialmente predatórios não são descartados da avaliação.
-* Outro ponto importante é a grande heterogeneidade das áreas quanto a esta "detecção de predatórios". Apesar disso, não há uma tendência clara entre agrupamentos dessa áreas, como grandes áreas, colégios ou áreas mais aplicadas e bássicas. Isso acontece que porque em quase todos estes grupos há pelo menos uma área que foge ao padrão. Por exemplo, nas Agrárias, que têm em geral detecção baixa, Alimentos mostra valores altos. Já entre as Engenharias que têm valores mais altos, a Engenharia II é discrepante. 
-* Minha avaliação é que o sistema é muito vulnerável a periódicos predatórios. A parte mais interessante a discutir são as razões. Lendo alguns documentos de área fiquei com a impressão que os critérios de classificação nos estratos das áreas não são suficientes para detectar predatórios, por duas razões principais: (i) critério para estratos altos focado no fator de impacto e (ii) critérios para estrato médio focado em presença em bases de indexação, número de artigos da área na revista e critérios subjetivos.
-* No primeiro caso, em geral os estratos mais altos são definidos por ter fator de impacto medido pelo JCR nos quartis mais altos de impacto dos periódicos da área. Isso pode excluir muitos predatórios, mas alguns que entraram na lista justamente por práticas questionáveis para aumentar o fator de impacto. Dois casos famosos são *Oncotarget* e *Aging*, ambos da tal Impact Journals , editados por Mikhail V. Blagosklonnye. A página da editora é vazia (http://www.impactjournals.com/) e  há fortes indícios de que estes periódicos usem práticas condenáveis para aumentar impacto, sob o comando de Blagosklonnye [^2]. Estes dois periódicos e mais um da mesma editora, *Genes & Cancer* são A1 de várias áreas das Ciências da Vida. Seria legal ter algum exemplo análogo para exatas
-* No segundo caso, o critério de impacto é substituído ou ponderado pela mera presença em certas bases bibliográficas, além da WoS. SCOPUS, PubMed e Scielo são alguns exemplos. A presença de periódicos predatórios mesmo em bases como a SCOPUS indica que este critério não é probelmático. Reforça este argumento que cerca de 30% dos títulos de editoras apontadas como predatórias pelo Bealls foram "descontinuados" da SCOPUS em 2017. Muitas áreas também usam como critério adicional para pontuar no QUALIS o quanto a área publica no periódico, o que evidentemente tem potencial para retroalimentar o uso de periódicos predatórios. Por fim, há um monte de critérios mais subjetivos de importância dos periódicos, e que muitas vezes não estão claros.
-* Um ponto importante é que a maioria dos periódicos potencialmente predatórios foi avaliada por mais de uma área, sendo que na maioria dos casos pelo menos uma área os classificou como "C".
-* Vale também notar que nos documentos de área ou de avaliação não há menção explícita a nenhum dos critérios do Bealls ou de outros autores e instituições para detectar periódicos predatórios. 
+* Outro ponto importante é a grande heterogeneidade das áreas quanto a essa "detecção de potenciais predatórios". Apesar disso, não há uma tendência clara entre agrupamentos dessa áreas, como grandes áreas, colégios ou áreas mais aplicadas e básicas. Isso acontece porque em quase todos estes grupos há pelo menos uma área que foge ao padrão. Por exemplo, nas Agrárias, que têm em geral detecção baixa, Alimentos mostra valores altos. Já entre as Engenharias que têm valores mais altos, a Engenharia II é discrepante. 
+* Assim, o sistema QUALIS é muito vulnerável a periódicos predatórios. No momento trabalhamos com a hipótese de que os critérios de classificação nos estratos das áreas não são suficientes para detectar predatórios, por duas razões principais: (i) critério para estratos altos focado no fator de impacto e (ii) critérios para estrato médio focado em presença em bases de indexação, número de artigos da área na revista e critérios subjetivos. 
+	* No primeiro caso, em geral os estratos mais altos são definidos por ter fator de impacto medido pelo JCR nos quartis mais altos de impacto dos periódicos da área. Isso pode excluir muitos predatórios, mas alguns que entraram na lista justamente por práticas questionáveis para aumentar o fator de impacto. Dois casos famosos são *Oncotarget* e *Aging*, ambos da editora comercial Impact Journals , editados por Mikhail V. Blagosklonnye. A página da editora é vazia (http://www.impactjournals.com/) e  há fortes indícios de que estes periódicos usem práticas condenáveis para aumentar impacto, sob o comando de Blagosklonnye [^2]. Estes dois periódicos e mais um da mesma editora, *Genes & Cancer* são A1 de várias áreas das Ciências da Vida. Buscamos agora exemplos análogos de outra áreas do conhecimento.
+	* No segundo caso, o critério de impacto é substituído ou ponderado pela mera presença em certas bases bibliográficas, além da WoS. SCOPUS, PubMed e Scielo são alguns exemplos. A presença de periódicos predatórios mesmo em bases como a SCOPUS indica que este critério não é probelmático. Reforça este argumento que cerca de 30% dos títulos de editoras apontadas como predatórias por Bealls foram "descontinuados" da SCOPUS em 2017. Muitas áreas também usam como critério adicional para pontuar no QUALIS o quanto a área publica no periódico, o que evidentemente tem potencial para retroalimentar o uso de periódicos predatórios. Por fim, há vários critérios mais subjetivos de importância dos periódicos, e que muitas vezes não estão claros nos documentos de avaliação.
+* Um ponto importante é que a maioria dos periódicos potencialmente predatórios foi avaliada por mais de uma área, sendo que na maioria dos casos pelo menos uma área os classificou como "C". Vale também notar que nos documentos de área ou de avaliação não há menção explícita a nenhum dos critérios do Bealls ou de outros autores e instituições para detectar periódicos predatórios. 
 
 #### Take-home message
 Procedimentos de detecção de periódicos predatórios não estão incorporados no QUALIS. Assim, a pequena proporção destes periódicos no total de títulos nos quais os programas de PG brasileiros publicam deve estar mais relacionada a opções destes programas do que da capacidade do sistema coibir ou prevenir isso. Nesta pequena fração a baixa capacidade do sistema de detectar estes periódicos como predatórios indica a vulnerabilidade do QUALIS aos predatórios.
@@ -188,7 +207,7 @@ Procedimentos de detecção de periódicos predatórios não estão incorporados
 #### Recomendações:
 * Incluir no QUALIS  critérios explícitos de triagem de periódicos potencialmente predatórios; 
 * Exigir das áreas que explicitem seus critérios para identificar predatórios; 
-* Procedimento para verificar discrepâncias quantoa  classificação em perdatórios entre áreas.
+* Procedimento para verificar discrepâncias quanto à classificação em predatórios entre áreas.
 
 # Planilhas
 
@@ -200,6 +219,8 @@ Planilhas com dados processados, usados nas análises
 
 
 
-[^1]: As dez áreas com maior proporção de títulos potendiciais predatórios no estrato C são Engenharias I-IV, Educação Física, Enfermagem, Materiais, Agrárias, Odontologia e Veterinária. Os documentos de avaliação das Engenharias I-III, Materiais e Enfermagem incluem explicitamente este critério de falta boas práticas para classificação no estrato C. A Veterinária usa estrato C na contabilização da produção discente, apesar de sete dos 20 periódicos neste estrato serem potencialmente predatórios! As restantes desta lista não mencionam e aparentemente não usam o estrato C em sua avaliação.
+[^1]: As dez áreas com maior proporção de títulos potenciais predatórios no estrato C são Engenharias I-IV, Educação Física, Enfermagem, Materiais, Agrárias, Odontologia e Veterinária. Os documentos de avaliação das Engenharias I-III, Materiais e Enfermagem incluem explicitamente este critério de falta boas práticas para classificação no estrato C. A Veterinária usa estrato C na contabilização da produção discente, apesar de sete dos 20 periódicos neste estrato serem potencialmente predatórios. As restantes desta lista não mencionam e aparentemente não usam o estrato C em sua avaliação.
 
 [^2]: https://web.archive.org/web/20160420235706/https://scholarlyoa.com/2016/04/19/oncotargets-peer-review-is-highly-questionable/ , https://web.archive.org/web/20161224004259/https://scholarlyoa.com/2016/12/06/mikhail-blagosklonnys-journal-aging-a-review/, http://retractionwatch.com/2017/10/25/widely-used-u-s-government-database-delists-cancer-journal/ .
+
+[^3]: [Why Beall’s blacklist of predatory journals died. Paul Basken, The Chronicle of Higher Education22 September 2017 Issue No:475](http://www.universityworldnews.com/article.php?story=20170920150122306)
