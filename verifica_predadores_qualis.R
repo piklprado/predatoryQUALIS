@@ -57,6 +57,8 @@ qualis$predp <- qualis$titulo.abr %in% sc.bealsp$title
 qualis$predp2 <- qualis$titulo.abr %in% sc.bealsp$title[sc.bealsp$cancelled]
 ## Title published by OMICS
 qualis$omics <- qualis$titulo.abr %in% omics$title
+## All predatory
+qualis$predatory <- qualis$pred|qualis$predp|qualis$omics
 
 ## Correcting titles in QUALIS that have been hijacked
 qualis$pred[qualis$ISSN=="1520-6025"] <- FALSE
@@ -66,7 +68,7 @@ qualis$titulo.abr[qualis$ISSN=="1520-6025"] <- paste(qualis$titulo.abr[qualis$IS
 qualis$titulo.abr[qualis$ISSN=="0163-3864"] <- paste(qualis$titulo.abr[qualis$ISSN=="0163-3864"],"no predatory")
 qualis$titulo.abr[qualis$ISSN=="1840-3662"] <- paste(qualis$titulo.abr[qualis$ISSN=="1840-3662"],"no predatory")
 ## Save a worksheet of the raw data
-write.csv2(qualis, file="qualis_id_predadores.csv")
+write.csv2(qualis[,-(6:9)], file="qualis_id_predadores.csv")
 
 ## A dataframe with a row for each journal title (eliminates duplicated names due online x print versions)
 qualis2 <- qualis %>%
