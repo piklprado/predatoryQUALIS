@@ -15,7 +15,7 @@ beals$title2 <- gsub(" s+"," ", beals$title2)
 ## Beals'list of predatory publishers
 bealsp <- read.csv2("beals_publishers.csv", as.is=TRUE)
 bealsp$name <- sub(" \\(.*$", "",bealsp$name.in.list)
-## Scopus list
+## Scopus list ##
 scopus <- read.csv2("Scopus_Source_List.csv", as.is=TRUE)
 scopus$cancelled <- grepl("cancelled", scopus$coverage)
 ## Extrating journals from Scopus list that are published by publishers in Beal's list
@@ -31,6 +31,9 @@ sum(sc.bealsp$cancelled)
 sc.bealsp <- sc.bealsp[!(sc.bealsp$title%in%beals$title2),] ## seven titles already in the original list
 ## save in csv
 write.csv2(sc.bealsp, file="beals_publishers_in_scopus.csv", row.names=FALSE)
+## Paper published by OMICS ##
+omics <- read.csv2("omics.csv", as.is=TRUE)
+omics$title <- toupper(omics$title)
 ## QUALIS knowledge areas classification
 areas <- read.csv2("areas.csv", as.is=TRUE)
 areas$area <- gsub(" +", " ", areas$area)
@@ -38,7 +41,7 @@ areas$area <- gsub(" $", "", areas$area)
 areas$res.area <- ifelse(areas$grande.area=="AGRÁRIAS"|areas$grande.area=="ENGENHARIAS"|
                          areas$grande.area=="MULTIDISCIPLINAR"|areas$grande.area=="SAÚDE"|
                          areas$grande.area=="SOCIAIS APLICADAS", "APPLIED", "BASIC")
-## QUALIS list of journals by area and grading
+## QUALIS list of journals by area and ranking
 qualis <- read.csv2("qualis_13_16.csv", as.is=TRUE)
 qualis$titulo.abr <- sub(" \\(.*$", "",qualis$titulo)
 qualis$titulo.abr <- gsub(" +"," ", qualis$titulo.abr)
@@ -52,6 +55,9 @@ qualis$pred <- qualis$titulo.abr %in% beals$title2
 qualis$predp <- qualis$titulo.abr %in% sc.bealsp$title
 ## Titles from Beals list of Predatory publishers in Scopus list and that have been discontinued in Scopus
 qualis$predp2 <- qualis$titulo.abr %in% sc.bealsp$title[sc.bealsp$cancelled]
+## Title published by OMICS
+qualis$omics <- qualis$titulo.abr %in% omics$title
+
 ## Correcting titles in QUALIS that have been hijacked
 qualis$pred[qualis$ISSN=="1520-6025"] <- FALSE
 qualis$pred[qualis$ISSN=="0163-3864"] <- FALSE
@@ -73,8 +79,10 @@ qualis2$pred <- qualis2$titulo.abr %in% beals$title2
 qualis2$predp <- qualis2$titulo.abr %in% sc.bealsp$title
 ## Titles from Beals list of Predatory publishers in Scopus list and that have been discontinued in Scopus
 qualis2$predp2 <- qualis2$titulo.abr %in% sc.bealsp$title[sc.bealsp$cancelled]
+## Titles from omics
+qualis2$omics <- qualis2$titulo.abr %in% omics$title
 ## Title in at least one list
-qualis2$all.pred <- qualis2$pred|qualis2$predp
+qualis2$all.pred <- qualis2$pred|qualis2$predp|qualis2$omics
 ## DOAJ list of removed titles##
 doaj <- read.csv2("doaj_removed.csv", as.is=TRUE)
 doaj$title <- toupper(doaj$title)
@@ -93,15 +101,27 @@ doaj.filter <- c("Suspected editorial misconduct by publisher",
                  "Journal not adhering to Best Practice\n",
                  "BMC stopped publishing",
                  "the issn 20888708 given by editor leads to another journal")
-qualis2$doaj <- qualis2$titulo.abr %in% doaj$title[doaj$reason%in%doaj.filter]
-## Beals x DOAJ listing
-table(qualis2$doaj, qualis2$pred|qualis2$predp)
+qualis2$doaj.removed <- qualis2$titulo.abr %in% doaj$title[doaj$reason%in%doaj.filter]
+## Beals x DOAJ removed listing
+# table(qualis2$doaj.removed, qualis2$pred|qualis2$predp)
+
+## DOAJ whitelist ##
+## in.doaj <- function(x) jaod_journal_search(paste("title",x,sep=":"))$total==0
+## qualis2$pred.doaj <- NA
+## ## Names of potentially predatory
+## ## Loop is not working due connexion errors
+## pred.names <- qualis2$titulo.abr[qualis2$all.pred]
+## results <- c()
+## for(i in 1:length(pred.names)){
+##     results[i] <- in.doaj(pred.names[i])
+##     }
+
 ################################################################################
 ## Number of predatory journals in each area and their ranking (A to C strata)
 ################################################################################
 pred.area <- qualis2 %>%
     group_by(area,estrato) %>%
-    summarize(total=n(), n.pred=sum(pred), n.predp=sum(predp), n.predp2=sum(predp2), all.pred=n.pred+n.predp) %>%
+    summarize(total=n(), n.pred=sum(pred), n.predp=sum(predp), n.predp2=sum(predp2), all.pred=sum(all.pred)) %>%
     as.data.frame()
 ## Exports to a  csv file
 write.csv2(pred.area,file="proporcao_pred_estrato_area.csv")
@@ -111,19 +131,19 @@ pred.area %>%
     summarize(pred.p.mean=100*mean(all.pred/total), pred.p.min = 100*min(all.pred/total), pred.p.max = 100*max(all.pred/total))
 
 ## Proportion of predatory ranked at C stratum, for each area
-detecta.pred <- qualis2 %>%
-    group_by(area,estrato) %>%
-    summarize(n.pred=sum(pred)) %>%
-    spread(estrato, n.pred) %>%
-    mutate(tot.pred=A1+A2+B1+B2+B3+B4+B5+C)
-## Adds total number of journals
-n.pred <- qualis2 %>%
-    group_by(area) %>%
-    summarise(tot=n()) %>%
-    inner_join(detecta.pred, by="area") %>%
-    dplyr::select(area, A1:C, tot.pred, tot) %>%
-    as.data.frame()
-## Same, including journals form publishers in Beals' list
+## detecta.pred <- qualis2 %>%
+##     group_by(area,estrato) %>%
+##     summarize(n.pred=sum(pred)) %>%
+##     spread(estrato, n.pred) %>%
+##     mutate(tot.pred=A1+A2+B1+B2+B3+B4+B5+C)
+## ## Adds total number of journals
+## n.pred <- qualis2 %>%
+##     group_by(area) %>%
+##     summarise(tot=n()) %>%
+##     inner_join(detecta.pred, by="area") %>%
+##     dplyr::select(area, A1:C, tot.pred, tot) %>%
+##     as.data.frame()
+## Same, including journals form publishers in Beals' list and OMICS
 ## Proportion of predatory ranked at C strata, for each area
 detecta.pred2 <- qualis2 %>%
     group_by(area,estrato) %>%
@@ -138,26 +158,26 @@ n.pred2 <- qualis2 %>%
     dplyr::select(area, A1:C, tot.pred, tot) %>%
     as.data.frame()
 ## Exports csv file
-write.csv2(n.pred,file="n_predadores_area.csv")
+#write.csv2(n.pred,file="n_predadores_area.csv")
 write.csv2(n.pred2,file="n_predadores_inclusivo_area.csv")
 
 ################################################################################
 ## A model to spot predatory Journals
 ################################################################################
 ## Only for standalone journals #
-tmp1 <- merge(areas, n.pred, by="area")
-m0 <- glm(cbind(C,tot.pred)~1 , data=tmp1, family=binomial)
-m1 <- glm(cbind(C,tot.pred)~area-1 , data=tmp1, family=binomial)
-m2 <- glm(cbind(C,tot.pred)~ grande.area-1, data=tmp1, family=binomial)
-m3 <- glm(cbind(C,tot.pred)~colegio -1, data=tmp1, family=binomial)
-m4 <- glm(cbind(C,tot.pred)~colegio+res.area -1, data=tmp1, family=binomial)
-m5 <- glm(cbind(C,tot.pred)~ res.area -1, data=tmp1, family=binomial)
-m6 <- glm(cbind(C,tot.pred)~colegio*res.area -1, data=tmp1, family=binomial)
+## tmp1 <- merge(areas, n.pred, by="area")
+## m0 <- glm(cbind(C,tot.pred)~1 , data=tmp1, family=binomial)
+## m1 <- glm(cbind(C,tot.pred)~area-1 , data=tmp1, family=binomial)
+## m2 <- glm(cbind(C,tot.pred)~ grande.area-1, data=tmp1, family=binomial)
+## m3 <- glm(cbind(C,tot.pred)~colegio -1, data=tmp1, family=binomial)
+## m4 <- glm(cbind(C,tot.pred)~colegio+res.area -1, data=tmp1, family=binomial)
+## m5 <- glm(cbind(C,tot.pred)~ res.area -1, data=tmp1, family=binomial)
+## m6 <- glm(cbind(C,tot.pred)~colegio*res.area -1, data=tmp1, family=binomial)
 
-AICctab(m0,m1,m2,m3,m4, m5, m6)
-logist <- function(x) exp(x)/(1+exp(x))
-logist(coef(m6))
-logist(confint(m6))
+## AICctab(m0,m1,m2,m3,m4, m5, m6)
+## logist <- function(x) exp(x)/(1+exp(x))
+## logist(coef(m6))
+## logist(confint(m6))
 
 ## For standalone journals + journals of potentially predatory publishers included by Scopus #
 tmp2 <- merge(areas, n.pred2, by="area")
@@ -183,7 +203,10 @@ pred.titles <-
     qualis2 %>%
     filter(all.pred==TRUE) %>%
     group_by(titulo.abr) %>%
-    summarize(N=n(), standalone=as.logical(max(pred)), NC = sum(estrato=="C"),
+    summarize(N=n(), standalone=as.logical(max(pred)),
+              bealls.scopus=as.logical(max(predp)),
+              omics= as.logical(max(omics)),
+              NC = sum(estrato=="C"),
               estrato.max=levels(estrato)[min(as.numeric(estrato))],
               estrato.min=levels(estrato)[max(as.numeric(estrato))])%>%
     as.data.frame
@@ -238,7 +261,7 @@ length(unique(qualis2$titulo.abr))
 ## For DOAJ
 pred.titles2 <- 
     qualis2 %>%
-    filter(doaj==TRUE) %>%
+    filter(doaj.removed==TRUE) %>%
     group_by(titulo.abr) %>%
     summarize(N=n(), standalone=as.logical(max(pred)), NC = sum(estrato=="C"),
               estrato.max=levels(estrato)[min(as.numeric(estrato))],
