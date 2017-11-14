@@ -61,9 +61,9 @@ qualis$omics <- qualis$titulo.abr %in% omics$title
 qualis$predatory <- qualis$pred|qualis$predp|qualis$omics
 
 ## Correcting titles in QUALIS that have been hijacked
-qualis$pred[qualis$ISSN=="1520-6025"] <- FALSE
-qualis$pred[qualis$ISSN=="0163-3864"] <- FALSE
-qualis$pred[qualis$ISSN=="1840-3662"] <- FALSE
+qualis$predatory[qualis$ISSN=="1520-6025"] <- FALSE
+qualis$predatory[qualis$ISSN=="0163-3864"] <- FALSE
+qualis$predatory[qualis$ISSN=="1840-3662"] <- FALSE
 qualis$titulo.abr[qualis$ISSN=="1520-6025"] <- paste(qualis$titulo.abr[qualis$ISSN=="1520-6025"],"no predatory")
 qualis$titulo.abr[qualis$ISSN=="0163-3864"] <- paste(qualis$titulo.abr[qualis$ISSN=="0163-3864"],"no predatory")
 qualis$titulo.abr[qualis$ISSN=="1840-3662"] <- paste(qualis$titulo.abr[qualis$ISSN=="1840-3662"],"no predatory")
