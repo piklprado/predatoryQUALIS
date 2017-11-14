@@ -1,0 +1,1746 @@
+
+R version 3.4.2 (2017-09-28) -- "Short Summer"
+Copyright (C) 2017 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R é um software livre e vem sem GARANTIA ALGUMA.
+Você pode redistribuí-lo sob certas circunstâncias.
+Digite 'license()' ou 'licence()' para detalhes de distribuição.
+
+R é um projeto colaborativo com muitos contribuidores.
+Digite 'contributors()' para obter mais informações e
+'citation()' para saber como citar o R ou pacotes do R em publicações.
+
+Digite 'demo()' para demonstrações, 'help()' para o sistema on-line de ajuda,
+ou 'help.start()' para abrir o sistema de ajuda em HTML no seu navegador.
+Digite 'q()' para sair do R.
+
+> library(MASS)
+> library(bbmle)
+Carregando pacotes exigidos: stats4
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following object is masked from ‘package:bbmle’:
+
+    slice
+
+The following object is masked from ‘package:MASS’:
+
+    select
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> library(tidyr)
+> library(lme4)
+Carregando pacotes exigidos: Matrix
+
+Attaching package: ‘Matrix’
+
+The following object is masked from ‘package:tidyr’:
+
+    expand
+
+> 
+> ################################################################################
+> ## Data preparation
+> ################################################################################
+> ## Beals' list of standalone predatory journals
+> beals <- read.csv2("../data/beals2.csv", as.is=TRUE, header=FALSE)
+> names(beals) <- "title"
+> beals$title2 <- sub(" \\(.*$", "", beals$title)
+> beals$title2 <- gsub(" s+"," ", beals$title2)
+> ## Beals'list of predatory publishers
+> bealsp <- read.csv2("../data/beals_publishers.csv", as.is=TRUE)
+> bealsp$name <- sub(" \\(.*$", "",bealsp$name.in.list)
+> ## Scopus list ##
+> scopus <- read.csv2("../data/Scopus_Source_List.csv", as.is=TRUE)
+> scopus$cancelled <- grepl("cancelled", scopus$coverage)
+> ## Extrating journals from Scopus list that are published by publishers in Beal's list
+> sc.bealsp <- rbind(merge(scopus, bealsp, by.x="publisher.name", by.y="name"),
++                    merge(scopus, bealsp, by.x="main.publisher", by.y="name"))
+> sc.bealsp <- sc.bealsp[!duplicated(sc.bealsp$id),]
+> sc.bealsp$title <- toupper(sc.bealsp$title)
+> ## Number of sources in this list
+> nrow(sc.bealsp)
+[1] 209
+> ##Number of sources cancelled by SCOPUS
+> sum(sc.bealsp$cancelled)
+[1] 64
+> ## Filtering titles already in Beals list of stand-alone Journals
+> sc.bealsp <- sc.bealsp[!(sc.bealsp$title%in%beals$title2),] ## seven titles already in the original list
+> ## save in csv
+> write.csv2(sc.bealsp, file="../data/beals_publishers_in_scopus.csv", row.names=FALSE)
+> ## Paper published by OMICS ##
+> omics <- read.csv2("../data/omics.csv", as.is=TRUE)
+> omics$title <- toupper(omics$title)
+> ## QUALIS knowledge areas classification
+> areas <- read.csv2("../data/areas.csv", as.is=TRUE)
+> areas$area <- gsub(" +", " ", areas$area)
+> areas$area <- gsub(" $", "", areas$area)
+> areas$res.area <- ifelse(areas$grande.area=="AGRÁRIAS"|areas$grande.area=="ENGENHARIAS"|
++                          areas$grande.area=="MULTIDISCIPLINAR"|areas$grande.area=="SAÚDE"|
++                          areas$grande.area=="SOCIAIS APLICADAS", "APPLIED", "BASIC")
+> ## QUALIS list of journals by area and ranking
+> qualis <- read.csv2("../data/qualis_13_16.csv", as.is=TRUE)
+> qualis$titulo.abr <- sub(" \\(.*$", "",qualis$titulo)
+> qualis$titulo.abr <- gsub(" +"," ", qualis$titulo.abr)
+> qualis$area <- gsub(" +", " ", qualis$area)
+> qualis$area <- gsub(" $", "", qualis$area)
+> qualis$estrato[qualis$estrato=="C "] <- "C"
+> qualis$estrato <- factor(qualis$estrato)
+> ## Titles in Beals list of standalone Journals
+> qualis$pred <- qualis$titulo.abr %in% beals$title2
+> ## Titles from Beals list of Predatory publishers in Scopus list
+> qualis$predp <- qualis$titulo.abr %in% sc.bealsp$title
+> ## Titles from Beals list of Predatory publishers in Scopus list and that have been discontinued in Scopus
+> qualis$predp2 <- qualis$titulo.abr %in% sc.bealsp$title[sc.bealsp$cancelled]
+> ## Title published by OMICS
+> qualis$omics <- qualis$titulo.abr %in% omics$title
+> ## All predatory
+> qualis$predatory <- qualis$pred|qualis$predp|qualis$omics
+> 
+> ## Correcting titles in QUALIS that have been hijacked
+> qualis$pred[qualis$ISSN=="1520-6025"] <- FALSE
+> qualis$pred[qualis$ISSN=="0163-3864"] <- FALSE
+> qualis$pred[qualis$ISSN=="1840-3662"] <- FALSE
+> qualis$titulo.abr[qualis$ISSN=="1520-6025"] <- paste(qualis$titulo.abr[qualis$ISSN=="1520-6025"],"no predatory")
+> qualis$titulo.abr[qualis$ISSN=="0163-3864"] <- paste(qualis$titulo.abr[qualis$ISSN=="0163-3864"],"no predatory")
+> qualis$titulo.abr[qualis$ISSN=="1840-3662"] <- paste(qualis$titulo.abr[qualis$ISSN=="1840-3662"],"no predatory")
+> ## Save a worksheet of the raw data
+> write.csv2(qualis[,-(6:9)], file="../data/qualis_id_predadores.csv")
+> 
+> ## A dataframe with a row for each journal title (eliminates duplicated names due online x print versions)
+> qualis2 <- qualis %>%
++     group_by(area, estrato, titulo.abr) %>%
++     summarise(N=n()) %>%
++     as.data.frame()
+> ## Which titles are predatory
+> qualis2$pred <- qualis2$titulo.abr %in% beals$title2
+> ## Titles from Beals list of Predatory publishers in Scopus list
+> qualis2$predp <- qualis2$titulo.abr %in% sc.bealsp$title
+> ## Titles from Beals list of Predatory publishers in Scopus list and that have been discontinued in Scopus
+> qualis2$predp2 <- qualis2$titulo.abr %in% sc.bealsp$title[sc.bealsp$cancelled]
+> ## Titles from omics
+> qualis2$omics <- qualis2$titulo.abr %in% omics$title
+> ## Title in at least one list
+> qualis2$all.pred <- qualis2$pred|qualis2$predp|qualis2$omics
+> ## DOAJ list of removed titles##
+> doaj <- read.csv2("../data/doaj_removed.csv", as.is=TRUE)
+> doaj$title <- toupper(doaj$title)
+> doaj.filter <- c("Suspected editorial misconduct by publisher",
++                  "Journal not adhering to Best Practice",
++                  "ISSN not registered",
++                  "Journal not adhering to Best practice",
++                  "Malicious website",
++                  "Journal not adhering to Best practice (one url per issue)",
++                  "Journal not adhering to Best practice and issn dead",
++                  "Reapp. not adhering to Best practice",
++                  "Invalid ISSN",
++                  "No licence , peer review inadequate",
++                  "Not in the issn database",
++                  "use of fake impact factor",
++                  "Journal not adhering to Best Practice\n",
++                  "BMC stopped publishing",
++                  "the issn 20888708 given by editor leads to another journal")
+> qualis2$doaj.removed <- qualis2$titulo.abr %in% doaj$title[doaj$reason%in%doaj.filter]
+> ## Beals x DOAJ removed listing
+> # table(qualis2$doaj.removed, qualis2$pred|qualis2$predp)
+> 
+> ## DOAJ whitelist ##
+> ## in.doaj <- function(x) jaod_journal_search(paste("title",x,sep=":"))$total==0
+> ## qualis2$pred.doaj <- NA
+> ## ## Names of potentially predatory
+> ## ## Loop is not working due connexion errors
+> ## pred.names <- qualis2$titulo.abr[qualis2$all.pred]
+> ## results <- c()
+> ## for(i in 1:length(pred.names)){
+> ##     results[i] <- in.doaj(pred.names[i])
+> ##     }
+> 
+> ################################################################################
+> ## Number of predatory journals in each area and their ranking (A to C strata)
+> ################################################################################
+> pred.area <- qualis2 %>%
++     group_by(area,estrato) %>%
++     summarize(total=n(), n.pred=sum(pred), n.predp=sum(predp), n.predp2=sum(predp2), all.pred=sum(all.pred)) %>%
++     as.data.frame()
+> ## Exports to a  csv file
+> write.csv2(pred.area,file="../data/proporcao_pred_estrato_area.csv")
+> ## Range of proportion of predatory Journals in each stratum
+> pred.area %>%
++     group_by(estrato) %>%
++     summarize(pred.p.mean=100*mean(all.pred/total), pred.p.min = 100*min(all.pred/total), pred.p.max = 100*max(all.pred/total))
+# A tibble: 8 x 4
+  estrato pred.p.mean pred.p.min pred.p.max
+   <fctr>       <dbl>      <dbl>      <dbl>
+1      A1   0.2185867          0   1.428571
+2      A2   0.4604639          0   2.068966
+3      B1   0.4794233          0   2.459016
+4      B2   0.8126925          0   3.111111
+5      B3   1.3283508          0   4.444444
+6      B4   1.8114617          0  10.759494
+7      B5   2.4453273          0   9.219858
+8       C  12.2029073          0  70.588235
+> 
+> ## Proportion of predatory ranked at C stratum, for each area
+> ## detecta.pred <- qualis2 %>%
+> ##     group_by(area,estrato) %>%
+> ##     summarize(n.pred=sum(pred)) %>%
+> ##     spread(estrato, n.pred) %>%
+> ##     mutate(tot.pred=A1+A2+B1+B2+B3+B4+B5+C)
+> ## ## Adds total number of journals
+> ## n.pred <- qualis2 %>%
+> ##     group_by(area) %>%
+> ##     summarise(tot=n()) %>%
+> ##     inner_join(detecta.pred, by="area") %>%
+> ##     dplyr::select(area, A1:C, tot.pred, tot) %>%
+> ##     as.data.frame()
+> ## Same, including journals form publishers in Beals' list and OMICS
+> ## Proportion of predatory ranked at C strata, for each area
+> detecta.pred2 <- qualis2 %>%
++     group_by(area,estrato) %>%
++     summarize(n.pred=sum(all.pred)) %>%
++     spread(estrato, n.pred) %>%
++     mutate(tot.pred=A1+A2+B1+B2+B3+B4+B5+C)
+> ## Adds total number of journals
+> n.pred2 <- qualis2 %>%
++     group_by(area) %>%
++     summarise(tot=n()) %>%
++     inner_join(detecta.pred2, by="area") %>%
++     dplyr::select(area, A1:C, tot.pred, tot) %>%
++     as.data.frame()
+> ## Exports csv file
+> #write.csv2(n.pred,file="n_predadores_area.csv")
+> write.csv2(n.pred2,file="../data/n_predadores_inclusivo_area.csv")
+> 
+> ################################################################################
+> ## A model to spot predatory Journals
+> ################################################################################
+> ## Only for standalone journals #
+> ## tmp1 <- merge(areas, n.pred, by="area")
+> ## m0 <- glm(cbind(C,tot.pred)~1 , data=tmp1, family=binomial)
+> ## m1 <- glm(cbind(C,tot.pred)~area-1 , data=tmp1, family=binomial)
+> ## m2 <- glm(cbind(C,tot.pred)~ grande.area-1, data=tmp1, family=binomial)
+> ## m3 <- glm(cbind(C,tot.pred)~colegio -1, data=tmp1, family=binomial)
+> ## m4 <- glm(cbind(C,tot.pred)~colegio+res.area -1, data=tmp1, family=binomial)
+> ## m5 <- glm(cbind(C,tot.pred)~ res.area -1, data=tmp1, family=binomial)
+> ## m6 <- glm(cbind(C,tot.pred)~colegio*res.area -1, data=tmp1, family=binomial)
+> 
+> ## AICctab(m0,m1,m2,m3,m4, m5, m6)
+> logist <- function(x) exp(x)/(1+exp(x))
+> ## logist(coef(m6))
+> ## logist(confint(m6))
+> 
+> ## For standalone journals + journals of potentially predatory publishers included by Scopus #
+> tmp2 <- merge(areas, n.pred2, by="area")
+> mb0 <- glm(cbind(C,tot.pred)~1 , data=tmp2, family=binomial)
+> mb1 <- glm(cbind(C,tot.pred)~area-1 , data=tmp2, family=binomial)
+> mb2 <- glm(cbind(C,tot.pred)~ grande.area-1, data=tmp2, family=binomial)
+> mb3  <- glm(cbind(C,tot.pred)~colegio -1, data=tmp2, family=binomial)
+> mb4 <- glm(cbind(C,tot.pred)~ res.area -1, data=tmp2, family=binomial)
+> mb5 <- glm(cbind(C,tot.pred)~colegio+res.area -1, data=tmp2, family=binomial)
+> mb6 <- glm(cbind(C,tot.pred)~colegio*res.area -1, data=tmp2, family=binomial)
+> AICctab(mb0,mb1,mb2,mb3,mb4, mb5, mb6)
+    dAICc  df
+mb1    0.0 49
+mb2 4950.9 9 
+mb5 4958.2 4 
+mb6 4959.5 6 
+mb4 4972.3 2 
+mb3 4985.8 3 
+mb0 4994.9 1 
+> logist(coef(mb1))
+areaADMINISTRAÇĂO PÚBLICA E DE EMPRESAS, CIÊNCIAS CONTÁBEIS E TURISMO 
+                                                         2.658678e-12 
+                                       areaANTROPOLOGIA / ARQUEOLOGIA 
+                                                         2.000000e-01 
+                                  areaARQUITETURA, URBANISMO E DESIGN 
+                                                         3.043478e-01 
+                                                   areaARTES / MÚSICA 
+                                                         2.500000e-01 
+                                              areaASTRONOMIA / FÍSICA 
+                                                         3.684211e-01 
+                                                   areaBIODIVERSIDADE 
+                                                         4.469697e-01 
+                                                    areaBIOTECNOLOGIA 
+                                                         3.773585e-01 
+                                            areaCIÊNCIA DA COMPUTAÇĂO 
+                                                         4.166667e-01 
+                                             areaCIÊNCIA DE ALIMENTOS 
+                                                         4.653465e-01 
+                       areaCIÊNCIA POLÍTICA E RELAÇƠES INTERNACIONAIS 
+                                                         2.307692e-01 
+                                              areaCIÊNCIAS AGRÁRIAS I 
+                                                         1.413043e-01 
+                                              areaCIÊNCIAS AMBIENTAIS 
+                                                         3.333333e-01 
+                                            areaCIÊNCIAS BIOLÓGICAS I 
+                                                         4.269006e-01 
+                                           areaCIÊNCIAS BIOLÓGICAS II 
+                                                         4.304636e-01 
+                                          areaCIÊNCIAS BIOLÓGICAS III 
+                                                         3.944954e-01 
+                                  areaCIÊNCIAS DA RELIGIĂO E TEOLOGIA 
+                                                         2.143345e-11 
+                                         areaCOMUNICAÇĂO E INFORMAÇĂO 
+                                                         4.285714e-01 
+                                                          areaDIREITO 
+                                                         3.750000e-01 
+                                                         areaECONOMIA 
+                                                         2.413793e-01 
+                                                         areaEDUCAÇĂO 
+                                                         2.222222e-01 
+                                                  areaEDUCAÇĂO FÍSICA 
+                                                         1.967213e-01 
+                                                       areaENFERMAGEM 
+                                                         2.083333e-01 
+                                                    areaENGENHARIAS I 
+                                                         4.216867e-01 
+                                                   areaENGENHARIAS II 
+                                                         2.686567e-01 
+                                                  areaENGENHARIAS III 
+                                                         4.202128e-01 
+                                                   areaENGENHARIAS IV 
+                                                         4.107143e-01 
+                                                           areaENSINO 
+                                                         2.545455e-01 
+                                                         areaFARMÁCIA 
+                                                         3.977901e-01 
+                                                        areaFILOSOFIA 
+                                                         2.143345e-11 
+                                                      areaGEOCIÊNCIAS 
+                                                         4.285714e-01 
+                                                        areaGEOGRAFIA 
+                                                         3.333333e-01 
+                                                         areaHISTÓRIA 
+                                                         2.143345e-11 
+                                                 areaINTERDISCIPLINAR 
+                                                         2.097561e-01 
+                                             areaLETRAS / LINGUÍSTICA 
+                                                         3.750000e-01 
+                         areaMATEMÁTICA / PROBABILIDADE E ESTATÍSTICA 
+                                                         4.347826e-01 
+                                                        areaMATERIAIS 
+                                                         1.346154e-01 
+                                                       areaMEDICINA I 
+                                                         3.899083e-01 
+                                                      areaMEDICINA II 
+                                                         2.790698e-01 
+                                                     areaMEDICINA III 
+                                                         2.539683e-01 
+                                             areaMEDICINA VETERINÁRIA 
+                                                         1.566265e-01 
+                                                         areaNUTRIÇĂO 
+                                                         1.627907e-01 
+                                                      areaODONTOLOGIA 
+                                                         2.247191e-01 
+                      areaPLANEJAMENTO URBANO E REGIONAL / DEMOGRAFIA 
+                                                         1.470588e-01 
+                                                       areaPSICOLOGIA 
+                                                         1.034483e-01 
+                                                          areaQUÍMICA 
+                                                         4.304636e-01 
+                                                   areaSAÚDE COLETIVA 
+                                                         4.368932e-01 
+                                                   areaSERVIÇO SOCIAL 
+                                                         4.545455e-01 
+                                                       areaSOCIOLOGIA 
+                                                         3.750000e-01 
+                                  areaZOOTECNIA / RECURSOS PESQUEIROS 
+                                                         2.127660e-01 
+> logist(confint(mb1))
+Waiting for profiling to be done...
+                                                                           2.5 %
+areaADMINISTRAÇĂO PÚBLICA E DE EMPRESAS, CIÊNCIAS CONTÁBEIS E TURISMO         NA
+areaANTROPOLOGIA / ARQUEOLOGIA                                        0.01261853
+areaARQUITETURA, URBANISMO E DESIGN                                   0.14395445
+areaARTES / MÚSICA                                                    0.01622093
+areaASTRONOMIA / FÍSICA                                               0.22731625
+areaBIODIVERSIDADE                                                    0.36378280
+areaBIOTECNOLOGIA                                                     0.31386715
+areaCIÊNCIA DA COMPUTAÇĂO                                             0.30718614
+areaCIÊNCIA DE ALIMENTOS                                              0.36985158
+areaCIÊNCIA POLÍTICA E RELAÇƠES INTERNACIONAIS                        0.06302025
+areaCIÊNCIAS AGRÁRIAS I                                               0.08035014
+areaCIÊNCIAS AMBIENTAIS                                               0.24907514
+areaCIÊNCIAS BIOLÓGICAS I                                             0.35426108
+areaCIÊNCIAS BIOLÓGICAS II                                            0.35315277
+areaCIÊNCIAS BIOLÓGICAS III                                           0.30597938
+areaCIÊNCIAS DA RELIGIĂO E TEOLOGIA                                           NA
+areaCOMUNICAÇĂO E INFORMAÇĂO                                          0.19802889
+areaDIREITO                                                           0.10957306
+areaECONOMIA                                                          0.11172395
+areaEDUCAÇĂO                                                          0.09490694
+areaEDUCAÇĂO FÍSICA                                                   0.11058007
+areaENFERMAGEM                                                        0.11034106
+areaENGENHARIAS I                                                     0.31903090
+areaENGENHARIAS II                                                    0.19845563
+areaENGENHARIAS III                                                   0.35108970
+areaENGENHARIAS IV                                                    0.32238550
+areaENSINO                                                            0.15230157
+areaFARMÁCIA                                                          0.32829145
+areaFILOSOFIA                                                                 NA
+areaGEOCIÊNCIAS                                                       0.23438730
+areaGEOGRAFIA                                                         0.14825976
+areaHISTÓRIA                                                                  NA
+areaINTERDISCIPLINAR                                                  0.15782741
+areaLETRAS / LINGUÍSTICA                                              0.10957306
+areaMATEMÁTICA / PROBABILIDADE E ESTATÍSTICA                          0.24719561
+areaMATERIAIS                                                         0.06020057
+areaMEDICINA I                                                        0.32672722
+areaMEDICINA II                                                       0.21563407
+areaMEDICINA III                                                      0.15768085
+areaMEDICINA VETERINÁRIA                                              0.08940032
+areaNUTRIÇĂO                                                          0.07344549
+areaODONTOLOGIA                                                       0.14656208
+areaPLANEJAMENTO URBANO E REGIONAL / DEMOGRAFIA                       0.05540502
+areaPSICOLOGIA                                                        0.02677570
+areaQUÍMICA                                                           0.35315277
+areaSAÚDE COLETIVA                                                    0.34353393
+areaSERVIÇO SOCIAL                                                    0.19365307
+areaSOCIOLOGIA                                                        0.10957306
+areaZOOTECNIA / RECURSOS PESQUEIROS                                   0.11283179
+                                                                         97.5 %
+areaADMINISTRAÇĂO PÚBLICA E DE EMPRESAS, CIÊNCIAS CONTÁBEIS E TURISMO       NaN
+areaANTROPOLOGIA / ARQUEOLOGIA                                        0.6282451
+areaARQUITETURA, URBANISMO E DESIGN                                   0.5061207
+areaARTES / MÚSICA                                                    0.7224957
+areaASTRONOMIA / FÍSICA                                               0.5267222
+areaBIODIVERSIDADE                                                    0.5321949
+areaBIOTECNOLOGIA                                                     0.4437944
+areaCIÊNCIA DA COMPUTAÇĂO                                             0.5319772
+areaCIÊNCIA DE ALIMENTOS                                              0.5625777
+areaCIÊNCIA POLÍTICA E RELAÇƠES INTERNACIONAIS                        0.4951150
+areaCIÊNCIAS AGRÁRIAS I                                               0.2219299
+areaCIÊNCIAS AMBIENTAIS                                               0.4254056
+areaCIÊNCIAS BIOLÓGICAS I                                             0.5017133
+areaCIÊNCIAS BIOLÓGICAS II                                            0.5101134
+areaCIÊNCIAS BIOLÓGICAS III                                           0.4879133
+areaCIÊNCIAS DA RELIGIĂO E TEOLOGIA                                         NaN
+areaCOMUNICAÇĂO E INFORMAÇĂO                                          0.6832002
+areaDIREITO                                                           0.7097497
+areaECONOMIA                                                          0.4148247
+areaEDUCAÇĂO                                                          0.3998726
+areaEDUCAÇĂO FÍSICA                                                   0.3078007
+areaENFERMAGEM                                                        0.3366419
+areaENGENHARIAS I                                                     0.5291053
+areaENGENHARIAS II                                                    0.3476174
+areaENGENHARIAS III                                                   0.4914946
+areaENGENHARIAS IV                                                    0.5030814
+areaENSINO                                                            0.3791475
+areaFARMÁCIA                                                          0.4701604
+areaFILOSOFIA                                                               NaN
+areaGEOCIÊNCIAS                                                       0.6392487
+areaGEOGRAFIA                                                         0.5628379
+areaHISTÓRIA                                                                NaN
+areaINTERDISCIPLINAR                                                  0.2688895
+areaLETRAS / LINGUÍSTICA                                              0.7097497
+areaMATEMÁTICA / PROBABILIDADE E ESTATÍSTICA                          0.6361831
+areaMATERIAIS                                                         0.2440774
+areaMEDICINA I                                                        0.4556602
+areaMEDICINA II                                                       0.3490350
+areaMEDICINA III                                                      0.3698754
+areaMEDICINA VETERINÁRIA                                              0.2447012
+areaNUTRIÇĂO                                                          0.2910891
+areaODONTOLOGIA                                                       0.3184994
+areaPLANEJAMENTO URBANO E REGIONAL / DEMOGRAFIA                       0.2898304
+areaPSICOLOGIA                                                        0.2467678
+areaQUÍMICA                                                           0.5101134
+areaSAÚDE COLETIVA                                                    0.5333535
+areaSERVIÇO SOCIAL                                                    0.7345333
+areaSOCIOLOGIA                                                        0.7097497
+areaZOOTECNIA / RECURSOS PESQUEIROS                                   0.3431772
+There were 50 or more warnings (use warnings() to see the first 50)
+> 
+> 
+> 
+> ################################################################################
+> ## Number of journal titles
+> ################################################################################
+> ## Number of areas that pubished in each predatory journal
+> ## Including both lists (standalone journals and journals from listed publishers)
+> pred.titles <- 
++     qualis2 %>%
++     filter(all.pred==TRUE) %>%
++     group_by(titulo.abr) %>%
++     summarize(N=n(), standalone=as.logical(max(pred)),
++               bealls.scopus=as.logical(max(predp)),
++               omics= as.logical(max(omics)),
++               NC = sum(estrato=="C"),
++               estrato.max=levels(estrato)[min(as.numeric(estrato))],
++               estrato.min=levels(estrato)[max(as.numeric(estrato))])%>%
++     as.data.frame
+> ## Contingency tables minimum x maximum strata
+> with(pred.titles, table (estrato.min, estrato.max))
+           estrato.max
+estrato.min  A1  A2  B1  B2  B3  B4  B5   C
+         A1   1   0   0   0   0   0   0   0
+         A2   0   1   0   0   0   0   0   0
+         B1   1   1   5   0   0   0   0   0
+         B2   0   0   1   7   0   0   0   0
+         B3   1   3   4   4   9   0   0   0
+         B4   0   3   2   0   2  13   0   0
+         B5   1   5   8   2   3   8  29   0
+         C    4   8  17  14  20  75  79 160
+> with(pred.titles[pred.titles$N>1,], table (estrato.min, estrato.max))
+           estrato.max
+estrato.min  A1  A2  B1  B2  B3  B4  B5   C
+         B1   1   1   1   0   0   0   0   0
+         B2   0   0   1   3   0   0   0   0
+         B3   1   3   4   4   2   0   0   0
+         B4   0   3   2   0   2   1   0   0
+         B5   1   5   8   2   3   8   6   0
+         C    4   8  17  14  20  75  79 102
+> ## Proporção dos periódicos avaliados por mais de uma área
+> sum(pred.titles$N>1)/nrow(pred.titles)
+[1] 0.7759674
+> ## proporcao que foi indicada como C por todas as áreas
+> with(pred.titles, sum(N>1&estrato.max=="C")/sum(pred.titles$N>1))
+[1] 0.2677165
+> ## proporção que foi indicada C por pelo menos uma
+> with(pred.titles, sum(N>1&estrato.min=="C")/sum(pred.titles$N>1))
+[1] 0.8372703
+> 
+> ## Proportion of titles classified in C strata by at least one area but no in other areas
+> 100*with(pred.titles[pred.titles$N>1,], sum(estrato.min=="C"&estrato.max!="C")/length(estrato.min))
+[1] 56.95538
+> ## Some figures
+> ## Total of predadory journals in QUALIS
+> nrow(pred.titles)
+[1] 491
+> ## Number of predatory journals evaluated by more than one area
+> sum(pred.titles$N>1)
+[1] 381
+> ## Percentages of total number of journals in Qualis
+> 100*nrow(pred.titles)/length(unique(qualis2$titulo.abr))
+[1] 1.85444
+> ## Percentage of standalone relative to the total number of journals in Beals' list
+> 100*sum(pred.titles$standalone)/nrow(beals)
+[1] 18.82622
+> 
+> ## Same figures only for predatory journal NOT ranked as C by at least one area ##
+> ## Total number in QUALIS
+> sum(pred.titles$estrato.max!="C")
+[1] 331
+> ## Percentage of the total number of predatory journals in QUALIS
+> 100*sum(pred.titles$estrato.max!="C")/nrow(pred.titles)
+[1] 67.41344
+> ## Percentage of the total number of journals in QUALIS
+> 100*sum(pred.titles$estrato.max!="C")/length(unique(qualis2$titulo.abr))
+[1] 1.250142
+> ## Percentage of the total number of journals in Beals' list
+> 100*sum(pred.titles$estrato.max!="C"&pred.titles$standalone)/nrow(beals)
+[1] 13.10976
+> 
+> ## Predatory journals ranked "A"
+> pred.titles[pred.titles$estrato.max=="A1",1]
+[1] "AGING"                                                     
+[2] "AMERICAN JOURNAL OF TRANSLATIONAL RESEARCH"                
+[3] "GENES & CANCER"                                            
+[4] "JOURNAL OF BIOMEDICAL NANOTECHNOLOGY"                      
+[5] "ONCOTARGET"                                                
+[6] "RESEARCH & REVIEWS: JOURNAL OF NURSING AND HEALTH SCIENCES"
+[7] "SCIENCE OF ADVANCED MATERIALS"                             
+[8] "VETERINARY RESEARCH"                                       
+> ## Checking qualis
+> qualis2[qualis2$titulo.abr%in%pred.titles[pred.titles$estrato.max=="A1",1]&qualis2$estrato=="A1",]
+                                  area estrato
+11670                    BIOTECNOLOGIA      A1
+27219            CIÊNCIAS BIOLÓGICAS I      A1
+27330            CIÊNCIAS BIOLÓGICAS I      A1
+30754           CIÊNCIAS BIOLÓGICAS II      A1
+33997          CIÊNCIAS BIOLÓGICAS III      A1
+34058          CIÊNCIAS BIOLÓGICAS III      A1
+47392                       ENFERMAGEM      A1
+51259                   ENGENHARIAS II      A1
+61832                         FARMÁCIA      A1
+70671                 INTERDISCIPLINAR      A1
+70689                 INTERDISCIPLINAR      A1
+71091                 INTERDISCIPLINAR      A1
+71300                 INTERDISCIPLINAR      A1
+84414                        MATERIAIS      A1
+86181                       MEDICINA I      A1
+90289                      MEDICINA II      A1
+90609                      MEDICINA II      A1
+94705                     MEDICINA III      A1
+94858                     MEDICINA III      A1
+96660             MEDICINA VETERINÁRIA      A1
+98333                         NUTRIÇĂO      A1
+98447                         NUTRIÇĂO      A1
+99592                      ODONTOLOGIA      A1
+99710                      ODONTOLOGIA      A1
+99771                      ODONTOLOGIA      A1
+106175                         QUÍMICA      A1
+114581 ZOOTECNIA / RECURSOS PESQUEIROS      A1
+                                                       titulo.abr N  pred predp
+11670                                                  ONCOTARGET 1  TRUE FALSE
+27219                                              GENES & CANCER 1  TRUE FALSE
+27330                                                  ONCOTARGET 1  TRUE FALSE
+30754                                                  ONCOTARGET 1  TRUE FALSE
+33997                                              GENES & CANCER 1  TRUE FALSE
+34058                                                  ONCOTARGET 1  TRUE FALSE
+47392  RESEARCH & REVIEWS: JOURNAL OF NURSING AND HEALTH SCIENCES 1 FALSE FALSE
+51259                               SCIENCE OF ADVANCED MATERIALS 1 FALSE  TRUE
+61832                                                  ONCOTARGET 1  TRUE FALSE
+70671                                                       AGING 1  TRUE FALSE
+70689                  AMERICAN JOURNAL OF TRANSLATIONAL RESEARCH 1 FALSE  TRUE
+71091                        JOURNAL OF BIOMEDICAL NANOTECHNOLOGY 1 FALSE  TRUE
+71300                                                  ONCOTARGET 1  TRUE FALSE
+84414                        JOURNAL OF BIOMEDICAL NANOTECHNOLOGY 1 FALSE  TRUE
+86181                                                  ONCOTARGET 1  TRUE FALSE
+90289                                                       AGING 1  TRUE FALSE
+90609                                                  ONCOTARGET 1  TRUE FALSE
+94705                                                       AGING 1  TRUE FALSE
+94858                                                  ONCOTARGET 1  TRUE FALSE
+96660                                                  ONCOTARGET 1  TRUE FALSE
+98333                                                       AGING 1  TRUE FALSE
+98447                                                  ONCOTARGET 1  TRUE FALSE
+99592                                                       AGING 1  TRUE FALSE
+99710                        JOURNAL OF BIOMEDICAL NANOTECHNOLOGY 1 FALSE  TRUE
+99771                                                  ONCOTARGET 1  TRUE FALSE
+106175                                                 ONCOTARGET 1  TRUE FALSE
+114581                                        VETERINARY RESEARCH 2 FALSE  TRUE
+       predp2 omics all.pred doaj.removed
+11670   FALSE FALSE     TRUE        FALSE
+27219   FALSE FALSE     TRUE        FALSE
+27330   FALSE FALSE     TRUE        FALSE
+30754   FALSE FALSE     TRUE        FALSE
+33997   FALSE FALSE     TRUE        FALSE
+34058   FALSE FALSE     TRUE        FALSE
+47392   FALSE  TRUE     TRUE        FALSE
+51259   FALSE FALSE     TRUE        FALSE
+61832   FALSE FALSE     TRUE        FALSE
+70671   FALSE FALSE     TRUE        FALSE
+70689   FALSE FALSE     TRUE        FALSE
+71091   FALSE FALSE     TRUE        FALSE
+71300   FALSE FALSE     TRUE        FALSE
+84414   FALSE FALSE     TRUE        FALSE
+86181   FALSE FALSE     TRUE        FALSE
+90289   FALSE FALSE     TRUE        FALSE
+90609   FALSE FALSE     TRUE        FALSE
+94705   FALSE FALSE     TRUE        FALSE
+94858   FALSE FALSE     TRUE        FALSE
+96660   FALSE FALSE     TRUE        FALSE
+98333   FALSE FALSE     TRUE        FALSE
+98447   FALSE FALSE     TRUE        FALSE
+99592   FALSE FALSE     TRUE        FALSE
+99710   FALSE FALSE     TRUE        FALSE
+99771   FALSE FALSE     TRUE        FALSE
+106175  FALSE FALSE     TRUE        FALSE
+114581  FALSE FALSE     TRUE        FALSE
+> qualis2[qualis2$titulo.abr%in%pred.titles[pred.titles$estrato.max=="A2",1]&qualis2$estrato=="A2",c(1,3)]
+                                                                    area
+414    ADMINISTRAÇĂO PÚBLICA E DE EMPRESAS, CIÊNCIAS CONTÁBEIS E TURISMO
+12127                                                      BIOTECNOLOGIA
+15427                                              CIÊNCIA DA COMPUTAÇĂO
+20000                                                CIÊNCIAS AGRÁRIAS I
+20149                                                CIÊNCIAS AGRÁRIAS I
+23616                                                CIÊNCIAS AMBIENTAIS
+36523                                           COMUNICAÇĂO E INFORMAÇĂO
+47430                                                         ENFERMAGEM
+47467                                                         ENFERMAGEM
+51415                                                     ENGENHARIAS II
+51418                                                     ENGENHARIAS II
+51453                                                     ENGENHARIAS II
+59136                                                             ENSINO
+59176                                                             ENSINO
+59255                                                             ENSINO
+61891                                                           FARMÁCIA
+71952                                                   INTERDISCIPLINAR
+71955                                                   INTERDISCIPLINAR
+71963                                                   INTERDISCIPLINAR
+80432                                               LETRAS / LINGUÍSTICA
+84577                                                          MATERIAIS
+86281                                                         MEDICINA I
+86540                                                         MEDICINA I
+86712                                                         MEDICINA I
+90710                                                        MEDICINA II
+91208                                                        MEDICINA II
+94893                                                       MEDICINA III
+95105                                                       MEDICINA III
+96791                                               MEDICINA VETERINÁRIA
+101687                       PLANEJAMENTO URBANO E REGIONAL / DEMOGRAFIA
+101724                       PLANEJAMENTO URBANO E REGIONAL / DEMOGRAFIA
+                                                               titulo.abr
+414                               EUROPEAN JOURNAL OF SCIENTIFIC RESEARCH
+12127                                         WORLD JOURNAL OF HEPATOLOGY
+15427                JOURNAL OF COMPUTATIONAL AND THEORETICAL NANOSCIENCE
+20000                  AMERICAN JOURNAL OF ANIMAL AND VETERINARY SCIENCES
+20149                                     GENETICS AND MOLECULAR RESEARCH
+23616                    INTERNATIONAL JOURNAL OF ELECTROCHEMICAL SCIENCE
+36523                                                GLOBAL MEDIA JOURNAL
+47430                                 AMERICAN JOURNAL OF CANCER RESEARCH
+47467                                      CELLULAR AND MOLECULAR BIOLOGY
+51415                         JOURNAL OF BIOBASED MATERIALS AND BIOENERGY
+51418                                           JOURNAL OF BIONANOSCIENCE
+51453                           JOURNAL OF NANOSCIENCE AND NANOTECHNOLOGY
+59136                    AUSTRALIAN JOURNAL OF BASIC AND APPLIED SCIENCES
+59176       INTERNATIONAL JOURNAL OF INFORMATION AND EDUCATION TECHNOLOGY
+59255                                      SCIENTIFIC RESEARCH AND ESSAYS
+61891                                 AMERICAN JOURNAL OF CANCER RESEARCH
+71952         INTERNATIONAL JOURNAL FOR INNOVATION EDUCATION AND RESEARCH
+71955  INTERNATIONAL JOURNAL OF ADVANCED ENGINEERING RESEARCH AND SCIENCE
+71963                       INTERNATIONAL JOURNAL OF DEVELOPMENT RESEARCH
+80432           INTERNATIONAL JOURNAL OF LANGUAGE AND APPLIED LINGUISTICS
+84577                      JOURNAL OF BIOMATERIALS AND TISSUE ENGINEERING
+86281                                 AMERICAN JOURNAL OF CANCER RESEARCH
+86540                                         JOURNAL OF NATURAL PRODUCTS
+86712                                         WORLD JOURNAL OF HEPATOLOGY
+90710                                 AMERICAN JOURNAL OF CANCER RESEARCH
+91208                                         WORLD JOURNAL OF HEPATOLOGY
+94893                                 AMERICAN JOURNAL OF CANCER RESEARCH
+95105                                         WORLD JOURNAL OF HEPATOLOGY
+96791                                     GENETICS AND MOLECULAR RESEARCH
+101687                   AUSTRALIAN JOURNAL OF BASIC AND APPLIED SCIENCES
+101724                            EUROPEAN JOURNAL OF SCIENTIFIC RESEARCH
+> qualis2[qualis2$titulo.abr%in%pred.titles[pred.titles$estrato.max=="B1",1]&qualis2$estrato=="B1",c(1,3)]
+                                                                    area
+843    ADMINISTRAÇĂO PÚBLICA E DE EMPRESAS, CIÊNCIAS CONTÁBEIS E TURISMO
+882    ADMINISTRAÇĂO PÚBLICA E DE EMPRESAS, CIÊNCIAS CONTÁBEIS E TURISMO
+888    ADMINISTRAÇĂO PÚBLICA E DE EMPRESAS, CIÊNCIAS CONTÁBEIS E TURISMO
+8553                                                      BIODIVERSIDADE
+12132                                                      BIOTECNOLOGIA
+12394                                                      BIOTECNOLOGIA
+15679                                              CIÊNCIA DA COMPUTAÇĂO
+20405                                                CIÊNCIAS AGRÁRIAS I
+20682                                                CIÊNCIAS AGRÁRIAS I
+20683                                                CIÊNCIAS AGRÁRIAS I
+20807                                                CIÊNCIAS AGRÁRIAS I
+23939                                                CIÊNCIAS AMBIENTAIS
+23940                                                CIÊNCIAS AMBIENTAIS
+23942                                                CIÊNCIAS AMBIENTAIS
+23943                                                CIÊNCIAS AMBIENTAIS
+23993                                                CIÊNCIAS AMBIENTAIS
+23994                                                CIÊNCIAS AMBIENTAIS
+24314                                                CIÊNCIAS AMBIENTAIS
+24318                                                CIÊNCIAS AMBIENTAIS
+24331                                                CIÊNCIAS AMBIENTAIS
+24362                                                CIÊNCIAS AMBIENTAIS
+24397                                                CIÊNCIAS AMBIENTAIS
+24481                                                CIÊNCIAS AMBIENTAIS
+27969                                              CIÊNCIAS BIOLÓGICAS I
+28062                                              CIÊNCIAS BIOLÓGICAS I
+31419                                             CIÊNCIAS BIOLÓGICAS II
+34496                                            CIÊNCIAS BIOLÓGICAS III
+40499                                                           ECONOMIA
+40501                                                           ECONOMIA
+40502                                                           ECONOMIA
+42035                                                           EDUCAÇĂO
+42036                                                           EDUCAÇĂO
+47642                                                         ENFERMAGEM
+47643                                                         ENFERMAGEM
+47747                                                         ENFERMAGEM
+47783                                                         ENFERMAGEM
+47809                                                         ENFERMAGEM
+47845                                                         ENFERMAGEM
+47895                                                         ENFERMAGEM
+54612                                                    ENGENHARIAS III
+57469                                                     ENGENHARIAS IV
+62170                                                           FARMÁCIA
+62270                                                           FARMÁCIA
+62379                                                           FARMÁCIA
+72680                                                   INTERDISCIPLINAR
+73015                                                   INTERDISCIPLINAR
+73163                                                   INTERDISCIPLINAR
+73164                                                   INTERDISCIPLINAR
+73175                                                   INTERDISCIPLINAR
+73215                                                   INTERDISCIPLINAR
+73347                                                   INTERDISCIPLINAR
+73383                                                   INTERDISCIPLINAR
+73416                                                   INTERDISCIPLINAR
+73527                                                   INTERDISCIPLINAR
+73530                                                   INTERDISCIPLINAR
+84963                                                          MATERIAIS
+86733                                                         MEDICINA I
+91240                                                        MEDICINA II
+91575                                                        MEDICINA II
+91662                                                        MEDICINA II
+91807                                                        MEDICINA II
+97155                                               MEDICINA VETERINÁRIA
+97156                                               MEDICINA VETERINÁRIA
+98737                                                           NUTRIÇĂO
+100217                                                       ODONTOLOGIA
+100218                                                       ODONTOLOGIA
+100274                                                       ODONTOLOGIA
+101840                       PLANEJAMENTO URBANO E REGIONAL / DEMOGRAFIA
+101841                       PLANEJAMENTO URBANO E REGIONAL / DEMOGRAFIA
+104080                                                        PSICOLOGIA
+109338                                                    SAÚDE COLETIVA
+                                                                            titulo.abr
+843                                          INTERNATIONAL JOURNAL OF ENTREPRENEURSHIP
+882                                       JOURNAL OF FOOD, AGRICULTURE AND ENVIRONMENT
+888                                                JOURNAL OF PHYSICAL THERAPY SCIENCE
+8553                                    ADVANCES IN PHARMACOEPIDEMIOLOGY & DRUG SAFETY
+12132                                   ADVANCES IN PHARMACOEPIDEMIOLOGY & DRUG SAFETY
+12394                                                FRONTIERS IN BIOSCIENCE - SCHOLAR
+15679                                                 JOURNAL OF LOW POWER ELECTRONICS
+20405                                   ADVANCES IN PHARMACOEPIDEMIOLOGY & DRUG SAFETY
+20682                                 INTERNATIONAL JOURNAL OF AGRICULTURE AND BIOLOGY
+20683                             INTERNATIONAL JOURNAL OF AGRONOMY & PLANT PRODUCTION
+20807                                        JOURNAL OF PLANT PATHOLOGY & MICROBIOLOGY
+23939                                         AFRICAN JOURNAL OF AGRICULTURAL RESEARCH
+23940                                                 AFRICAN JOURNAL OF BIOTECHNOLOGY
+23942                                         AFRICAN JOURNAL OF MICROBIOLOGY RESEARCH
+23943                                     AFRICAN JOURNAL OF PHARMACY AND PHARMACOLOGY
+23993                                                       ASIAN JOURNAL OF CHEMISTRY
+23994                                        ASIAN PACIFIC JOURNAL OF TROPICAL DISEASE
+24314                     INTERNATIONAL JOURNAL OF MOLECULAR EPIDEMIOLOGY AND GENETICS
+24318                    INTERNATIONAL JOURNAL OF PHARMACEUTICAL SCIENCES AND RESEARCH
+24331  INTERNATIONAL PROCEEDINGS OF CHEMICAL, BIOLOGICAL AND ENVIRONMENTAL ENGINEERING
+24362                                        JOURNAL OF APPLIED PHARMACEUTICAL SCIENCE
+24397                                     JOURNAL OF FOOD, AGRICULTURE AND ENVIRONMENT
+24481                                                              MEDICINAL CHEMISTRY
+27969                                                FRONTIERS IN BIOSCIENCE - SCHOLAR
+28062                                           JOURNAL OF BACTERIOLOGY & PARASITOLOGY
+31419                                                FRONTIERS IN BIOSCIENCE - SCHOLAR
+34496               INTERNATIONAL JOURNAL OF CURRENT MICROBIOLOGY AND APPLIED SCIENCES
+40499                     INTERNATIONAL JOURNAL OF CLINICAL AND EXPERIMENTAL PATHOLOGY
+40501                     INTERNATIONAL JOURNAL OF ECOLOGICAL ECONOMICS AND STATISTICS
+40502                                   INTERNATIONAL JOURNAL OF ECONOMICS AND FINANCE
+42035                                         AFRICAN JOURNAL OF AGRICULTURAL RESEARCH
+42036                                         AFRICAN JOURNAL OF MICROBIOLOGY RESEARCH
+47642                                         AFRICAN JOURNAL OF MICROBIOLOGY RESEARCH
+47643                                     AFRICAN JOURNAL OF PHARMACY AND PHARMACOLOGY
+47747                                             EXPERIMENTAL AND CLINICAL CARDIOLOGY
+47783                      INTERNATIONAL JOURNAL OF CLINICAL AND EXPERIMENTAL MEDICINE
+47809                                        JOURNAL OF APPLIED PHARMACEUTICAL SCIENCE
+47845                                              JOURNAL OF PHYSICAL THERAPY SCIENCE
+47895                                                               PHARMACOLOGYONLINE
+54612                                           NANOSCIENCE AND NANOTECHNOLOGY LETTERS
+57469                                   JOURNAL OF NANOELECTRONICS AND OPTOELECTRONICS
+62170                                   ADVANCES IN PHARMACOEPIDEMIOLOGY & DRUG SAFETY
+62270                                               CHINESE JOURNAL OF CANCER RESEARCH
+62379                                                FRONTIERS IN BIOSCIENCE - SCHOLAR
+72680                                        ASIAN PACIFIC JOURNAL OF TROPICAL DISEASE
+73015                                             EXPERIMENTAL AND CLINICAL CARDIOLOGY
+73163                      INTERNATIONAL JOURNAL OF CLINICAL AND EXPERIMENTAL MEDICINE
+73164                     INTERNATIONAL JOURNAL OF CLINICAL AND EXPERIMENTAL PATHOLOGY
+73175                                        INTERNATIONAL JOURNAL OF ENTREPRENEURSHIP
+73215                             INTERNATIONAL JOURNAL OF SOCIAL SCIENCE AND HUMANITY
+73347                                     JOURNAL OF FOOD, AGRICULTURE AND ENVIRONMENT
+73383                                        JOURNAL OF MOLECULAR AND GENETIC MEDICINE
+73416                                              JOURNAL OF PHYSICAL THERAPY SCIENCE
+73527                                                              MEDICINAL CHEMISTRY
+73530                                               MEDITERRANEAN JOURNAL OF CHEMISTRY
+84963                                                                   SENSOR LETTERS
+86733                                       AMERICAN JOURNAL OF CARDIOVASCULAR DISEASE
+91240                                       AMERICAN JOURNAL OF CARDIOVASCULAR DISEASE
+91575                                                FRONTIERS IN BIOSCIENCE - SCHOLAR
+91662            INTERNATIONAL JOURNAL OF PHYSIOLOGY, PATHOPHYSIOLOGY AND PHARMACOLOGY
+91807                                              JOURNAL OF PHYSICAL THERAPY SCIENCE
+97155                      INTERNATIONAL JOURNAL OF CLINICAL AND EXPERIMENTAL MEDICINE
+97156                     INTERNATIONAL JOURNAL OF CLINICAL AND EXPERIMENTAL PATHOLOGY
+98737                     INTERNATIONAL JOURNAL OF CLINICAL AND EXPERIMENTAL PATHOLOGY
+100217                     INTERNATIONAL JOURNAL OF CLINICAL AND EXPERIMENTAL MEDICINE
+100218                    INTERNATIONAL JOURNAL OF CLINICAL AND EXPERIMENTAL PATHOLOGY
+100274                                             JOURNAL OF PHYSICAL THERAPY SCIENCE
+101840                                                AFRICAN JOURNAL OF BIOTECHNOLOGY
+101841                                        AFRICAN JOURNAL OF MICROBIOLOGY RESEARCH
+104080                                             JOURNAL OF PHYSICAL THERAPY SCIENCE
+109338                    INTERNATIONAL JOURNAL OF MOLECULAR EPIDEMIOLOGY AND GENETICS
+> ## Predatory journals ranked by one than one area
+> table(pred.titles$N)
+
+  1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19  20 
+110  91  67  44  39  27  28  14  14   7   4   7   3   6   3   6   6   3   1   3 
+ 23  25  26  27  28  31 
+  1   1   3   1   1   1 
+> ## Predatory Journals ranked by more than one area and that have not spoted
+> pred.titles[pred.titles$N>1&pred.titles$NC==0,]
+                                                                                                 titulo.abr
+7                                                                                  ADVANCED SCIENCE LETTERS
+11                                                                  ADVANCES IN CROP SCIENCE AND TECHNOLOGY
+19                                                                                                    AGING
+22                                                       AMERICAN JOURNAL OF ANIMAL AND VETERINARY SCIENCES
+24                                                       AMERICAN JOURNAL OF BIOCHEMISTRY AND BIOTECHNOLOGY
+25                                                                      AMERICAN JOURNAL OF CANCER RESEARCH
+37                                                               AMERICAN JOURNAL OF TRANSLATIONAL RESEARCH
+38                           AMERICAN SCIENTIFIC RESEARCH JOURNAL FOR ENGINEERING, TECHNOLOGY, AND SCIENCES
+43                                                        ARABIAN JOURNAL OF BUSINESS AND MANAGEMENT REVIEW
+51                                                        ASIAN JOURNAL OF BUSINESS AND MANAGEMENT SCIENCES
+52                                                                               ASIAN JOURNAL OF CHEMISTRY
+54                                                                ASIAN PACIFIC JOURNAL OF TROPICAL DISEASE
+56                                                                 BIOCERAMICS DEVELOPMENT AND APPLICATIONS
+63                                                                           BUSINESS AND ECONOMICS JOURNAL
+67                                                                           CELLULAR AND MOLECULAR BIOLOGY
+92                                                                     EXPERIMENTAL AND CLINICAL CARDIOLOGY
+94                                                                        FRONTIERS IN BIOSCIENCE - SCHOLAR
+96                                                                          GENETICS AND MOLECULAR RESEARCH
+97                                                                                            GLAND SURGERY
+102                                                                                    GLOBAL MEDIA JOURNAL
+103                                                                                GOLDEN RESEARCH THOUGHTS
+104                                                                                  HEALTH SCIENCE JOURNAL
+105                                                                                               HEALTHMED
+107                                                                                       IMMUNOME RESEARCH
+113                                                                                             INFORMATION
+120                                             INTERNATIONAL JOURNAL FOR INNOVATION EDUCATION AND RESEARCH
+146                                                               INTERNATIONAL JOURNAL OF BURNS AND TRAUMA
+150                                      INTERNATIONAL JOURNAL OF BUSINESS MANAGEMENT AND ECONOMIC RESEARCH
+151                                             INTERNATIONAL JOURNAL OF CLINICAL AND EXPERIMENTAL MEDICINE
+152                                            INTERNATIONAL JOURNAL OF CLINICAL AND EXPERIMENTAL PATHOLOGY
+154                                INTERNATIONAL JOURNAL OF COMMUNICATION NETWORKS AND INFORMATION SECURITY
+171                                            INTERNATIONAL JOURNAL OF ECOLOGICAL ECONOMICS AND STATISTICS
+179                                                        INTERNATIONAL JOURNAL OF ELECTROCHEMICAL SCIENCE
+181                                   INTERNATIONAL JOURNAL OF EMERGENCY MENTAL HEALTH AND HUMAN RESILIENCE
+190                                                         INTERNATIONAL JOURNAL OF ENGINEERING INVENTIONS
+199                                                               INTERNATIONAL JOURNAL OF ENTREPRENEURSHIP
+200                                     INTERNATIONAL JOURNAL OF ENVIRONMENT, AGRICULTURE AND BIOTECHNOLOGY
+224                                            INTERNATIONAL JOURNAL OF MOLECULAR EPIDEMIOLOGY AND GENETICS
+231                                                                     INTERNATIONAL JOURNAL OF PEDIATRICS
+242                                   INTERNATIONAL JOURNAL OF PHYSIOLOGY, PATHOPHYSIOLOGY AND PHARMACOLOGY
+276                                                                       JOURNAL OF ACCOUNTING & MARKETING
+294                                                             JOURNAL OF BIOBASED MATERIALS AND BIOENERGY
+295                                                          JOURNAL OF BIOMATERIALS AND TISSUE ENGINEERING
+296                                                                    JOURNAL OF BIOMEDICAL NANOTECHNOLOGY
+297                                                                               JOURNAL OF BIONANOSCIENCE
+321                                                    JOURNAL OF COMPUTATIONAL AND THEORETICAL NANOSCIENCE
+337 JOURNAL OF FERTILIZATION: IN VITRO - IVF-WORLDWIDE, REPRODUCTIVE MEDICINE, GENETICS & STEM CELL BIOLOGY
+340                                                            JOURNAL OF FOOD, AGRICULTURE AND ENVIRONMENT
+359                                                                        JOURNAL OF LOW POWER ELECTRONICS
+372                                                          JOURNAL OF NANOELECTRONICS AND OPTOELECTRONICS
+374                                                               JOURNAL OF NANOSCIENCE AND NANOTECHNOLOGY
+392                                                              JOURNAL OF PHARMACY AND NUTRITION SCIENCES
+408                                                                    JOURNAL OF SLEEP DISORDERS & THERAPY
+412                                                                  JOURNAL OF STEROIDS & HORMONAL SCIENCE
+437                                                                                     MEDICINAL CHEMISTRY
+442                                                                  NANOSCIENCE AND NANOTECHNOLOGY LETTERS
+455                                                            QUANTITATIVE IMAGING IN MEDICINE AND SURGERY
+457                                                          RESEARCH & REVIEWS: JOURNAL OF DENTAL SCIENCES
+469                                                                                          SENSOR LETTERS
+471                                                              TECHNICS TECHNOLOGIES EDUCATION MANAGEMENT
+476                                                                     TRANSLATIONAL ANDROLOGY AND UROLOGY
+478                                                                           TRANSLATIONAL CANCER RESEARCH
+     N standalone bealls.scopus omics NC estrato.max estrato.min
+7    3      FALSE          TRUE FALSE  0          B2          B3
+11   2      FALSE         FALSE  TRUE  0          B4          B5
+19  10       TRUE         FALSE FALSE  0          A1          B5
+22   5      FALSE          TRUE FALSE  0          A2          B4
+24   2      FALSE          TRUE FALSE  0          B4          B5
+25   6      FALSE          TRUE FALSE  0          A2          B1
+37   9      FALSE          TRUE FALSE  0          A1          B1
+38   3       TRUE         FALSE FALSE  0          B5          B5
+43   3      FALSE         FALSE  TRUE  0          B4          B5
+51   5       TRUE         FALSE FALSE  0          B3          B5
+52   4       TRUE         FALSE FALSE  0          B1          B5
+54   9       TRUE         FALSE FALSE  0          B1          B4
+56   2      FALSE         FALSE  TRUE  0          B4          B5
+63   2       TRUE         FALSE  TRUE  0          B3          B5
+67   5      FALSE         FALSE  TRUE  0          A2          B5
+92  11      FALSE          TRUE FALSE  0          B1          B5
+94   5      FALSE          TRUE FALSE  0          B1          B1
+96  31       TRUE         FALSE FALSE  0          A2          B5
+97   2      FALSE          TRUE FALSE  0          B5          B5
+102  2       TRUE         FALSE FALSE  0          A2          B4
+103  2       TRUE         FALSE FALSE  0          B5          B5
+104  4      FALSE         FALSE  TRUE  0          B2          B2
+105  7      FALSE          TRUE FALSE  0          B2          B5
+107  2      FALSE         FALSE  TRUE  0          B2          B3
+113  4      FALSE          TRUE FALSE  0          B2          B5
+120  2       TRUE         FALSE FALSE  0          A2          B3
+146  3      FALSE          TRUE FALSE  0          B2          B2
+150  3       TRUE         FALSE FALSE  0          B3          B5
+151 14      FALSE          TRUE FALSE  0          B1          B4
+152 15      FALSE          TRUE FALSE  0          B1          B3
+154  2       TRUE         FALSE FALSE  0          B2          B2
+171  2      FALSE          TRUE FALSE  0          B1          B5
+179 17       TRUE         FALSE FALSE  0          A2          B4
+181  3      FALSE         FALSE  TRUE  0          B3          B4
+190  5       TRUE         FALSE FALSE  0          B4          B5
+199  3      FALSE          TRUE FALSE  0          B1          B5
+200  2       TRUE         FALSE FALSE  0          B5          B5
+224  7      FALSE          TRUE FALSE  0          B1          B3
+231  2       TRUE         FALSE FALSE  0          B3          B4
+242  3      FALSE          TRUE FALSE  0          B1          B3
+276  2      FALSE         FALSE  TRUE  0          B4          B5
+294  9      FALSE          TRUE FALSE  0          A2          B5
+295  8      FALSE          TRUE FALSE  0          A2          B3
+296 16      FALSE          TRUE FALSE  0          A1          B3
+297  3      FALSE          TRUE FALSE  0          A2          B5
+321 12      FALSE          TRUE FALSE  0          A2          B3
+337  2      FALSE         FALSE  TRUE  0          B5          B5
+340 18       TRUE         FALSE FALSE  0          B1          B5
+359  2      FALSE          TRUE FALSE  0          B1          B2
+372  3      FALSE          TRUE FALSE  0          B1          B5
+374 20      FALSE          TRUE FALSE  0          A2          B5
+392  3      FALSE          TRUE FALSE  0          B3          B3
+408  2      FALSE         FALSE  TRUE  0          B4          B5
+412  2      FALSE         FALSE  TRUE  0          B4          B4
+437 17      FALSE         FALSE  TRUE  0          B1          B5
+442  2      FALSE          TRUE FALSE  0          B1          B3
+455  4      FALSE          TRUE FALSE  0          B4          B5
+457  2      FALSE         FALSE  TRUE  0          B5          B5
+469  9      FALSE          TRUE FALSE  0          B1          B5
+471  2       TRUE         FALSE FALSE  0          B3          B3
+476  4      FALSE          TRUE FALSE  0          B2          B3
+478  2      FALSE          TRUE FALSE  0          B2          B3
+> ## Number of such journals and proportion of number of predatory journals in CAPES
+> sum(pred.titles$N>1&pred.titles$NC==0)
+[1] 62
+> 100*sum(pred.titles$N>1&pred.titles$NC==0)/nrow(pred.titles) 
+[1] 12.62729
+> 
+> length(unique(qualis2$titulo.abr))
+[1] 26477
+> 
+> ## For DOAJ
+> pred.titles2 <- 
++     qualis2 %>%
++     filter(doaj.removed==TRUE) %>%
++     group_by(titulo.abr) %>%
++     summarize(N=n(), standalone=as.logical(max(pred)), NC = sum(estrato=="C"),
++               estrato.max=levels(estrato)[min(as.numeric(estrato))],
++               estrato.min=levels(estrato)[max(as.numeric(estrato))])%>%
++     as.data.frame()
+> ## Some figures
+> ## Total of predadory journals in QUALIS
+> nrow(pred.titles2)
+[1] 422
+> ## Number of predatory journals evaluated by more than one area
+> sum(pred.titles2$N>1)
+[1] 303
+> ## Percentages of total number of journals in Qualis
+> 100*nrow(pred.titles2)/length(unique(qualis2$titulo.abr))
+[1] 1.593836
+> ## Checking against Beall's list
+> sum(pred.titles2$titulo.abr %in% pred.titles$titulo.abr)
+[1] 60
+> pred.titles2[!(pred.titles2$titulo.abr %in% pred.titles$titulo.abr),] ## many legitimate titles like Caderno CEDES ...
+                                                                                      titulo.abr
+1                                                                              A CONTRACORRIENTE
+2                                                                                 ACTA ADRIATICA
+3                                                                                    ACTA IGUAZU
+4                                                      ACTA MATHEMATICA UNIVERSITATIS COMENIANAE
+5                                                             ACTA NEUROBIOLOGIAE EXPERIMENTALIS
+6                                                                            ACTA PROTOZOOLOGICA
+7                                                 ADVANCE JOURNAL OF FOOD SCIENCE AND TECHNOLOGY
+9                                                                ADVANCES IN OPERATIONS RESEARCH
+11                                                      AFRICAN JOURNAL OF BIOCHEMISTRY RESEARCH
+13                                                        AFRICAN JOURNAL OF BUSINESS MANAGEMENT
+15                                                                                     AFRO-ÁSIA
+16                                                                                     AISTHESIS
+17                                                                                      ALMANACK
+21                                     AMERICAN JOURNAL OF ECONOMICS AND BUSINESS ADMINISTRATION
+22                                          AMERICAN JOURNAL OF ENGINEERING AND APPLIED SCIENCES
+27                                                              AMPHIBIAN & REPTILE CONSERVATION
+28                                                                                       ANÁLISE
+29                                                                           ANIMAL REPRODUCTION
+30                                                                       ANTI-TRAFFICKING REVIEW
+31                                                  APPLICABLE ANALYSIS AND DISCRETE MATHEMATICS
+33                                                          APPLIED TECHNOLOGIES AND INNOVATIONS
+34                                             AQUACULTURE, AQUARIUM, CONSERVATION & LEGISLATION
+35                                                     ARCHIVES OF PEDIATRIC INFECTIOUS DISEASES
+36                                                                   ARCHIVES OF TRAUMA RESEARCH
+37                                         ASIAN JOURNAL OF PHARMACEUTICAL AND CLINICAL RESEARCH
+38                                                              ASIAN JOURNAL OF SPORTS MEDICINE
+39                                                   AVANCES EN PERIODONCIA E IMPLANTOLOGÍA ORAL
+40                                                                                      BARBARÓI
+41                                                       BIOINORGANIC CHEMISTRY AND APPLICATIONS
+43                                                                           BIOLOGY OF EXERCISE
+44                                                                                  BIORESOURCES
+45                                                                                      BIOTEMAS
+46                                                                   BOREAL ENVIRONMENT RESEARCH
+47                                                                 BRAZILIAN JOURNALISM RESEARCH
+48                                                                   BRITISH JOURNAL OF VIROLOGY
+49                                                      BULGARIAN JOURNAL OF VETERINARY MEDICINE
+50                                                                 BULLETIN OF MATERIALS SCIENCE
+51                                                                                CADERNOS CEDES
+52                                                               CADERNOS DE ARTE E ANTROPOLOGIA
+53                                                       CADERNOS DE ESTUDOS SOCIAIS E POLÍTICOS
+54                                                                          CADERNOS DE PESQUISA
+55                                                                                    CAMINHANDO
+57                                                                       CANADIAN SOCIAL SCIENCE
+58                                                                           CARDIOLOGY RESEARCH
+59                                                           CENTRAL EUROPEAN JOURNAL OF UROLOGY
+60                                                                                     CERISCOPE
+61                                                          CES MEDICINA VETERINARIA Y ZOOTECNIA
+62                                                                               CES ODONTOLOGIA
+63                                                      CHILEAN JOURNAL OF AGRICULTURAL RESEARCH
+64                                                                  CLINICAL MEDICINE & RESEARCH
+65                                                                      CLINICAL NURSING STUDIES
+66                                           CLINICAL PRACTICE AND EPIDEMIOLOGY IN MENTAL HEALTH
+67                                                                           COLLOQUIUM AGRARIAE
+68                                                                          COLLOQUIUM EXACTARUM
+69                                                                              COLLOQUIUM VITAE
+70                                                                             COLOMBIA FORESTAL
+71                                                                               COLOMBIA MÉDICA
+72                                                                       COMUNICACIÓN Y SOCIEDAD
+73                                                                          COMUNICATA SCIENTIAE
+74                                                                         CONSERVATION EVIDENCE
+75                                                                                     CONTEXTUS
+76                                                        CONTRIBUCIONES A LAS CIENCIAS SOCIALES
+77                                                                                 CORE EVIDENCE
+78                                                             CUADERNOS DE VIVIENDA Y URBANISMO
+79                                                                         CUADERNOS DEL CIMBAGE
+80                                                                           CULTIVOS TROPICALES
+81                                                                     CUMHURIYET DENTAL JOURNAL
+82                                                                              CURRENT ONCOLOGY
+83                                               CURRENT RESEARCH JOURNAL OF BIOLOGICAL SCIENCES
+84                                                                                D-LIB MAGAZINE
+85                                                                    DERMATOLOGY ONLINE JOURNAL
+86                                                                                      DIÁLOGOS
+87                                     DILEMAS: REVISTA DE ESTUDOS DE CONFLITO E CONTROLE SOCIAL
+88                                                                               DIREITO PÚBLICO
+89                                                           DRUG, HEALTHCARE AND PATIENT SAFETY
+90                                                                                     DUGESIANA
+91                                                                      ECCOS REVISTA CIENTÍFICA
+92                                                                             ECONOMIA APLICADA
+93                                                                                   ECOSISTEMAS
+94                                                                             EN BLANCO Y NEGRO
+95                                                               ENERGY AND ENVIRONMENT RESEARCH
+96                                                                 ENERGY SCIENCE AND TECHNOLOGY
+97                                                                           ENGINEERING LETTERS
+98                                                    ENVIRONMENT AND NATURAL RESOURCES RESEARCH
+99                                                                     ENVIRONMENT AND POLLUTION
+100                                                                            ESPACIOS PÚBLICOS
+101                                                                                ESPAÇO PLURAL
+102                                                                    ESTUDIOS CONSTITUCIONALES
+103                                       ESTUDIOS DE HISTORIA MODERNA Y CONTEMPORÁNEA DE MÉXICO
+104                                                      ESTUDOS CONTEMPORÂNEOS DA SUBJETIVIDADE
+105                                                            ESTUDOS E PESQUISAS EM PSICOLOGIA
+106                                                                ETHNOBIOLOGY AND CONSERVATION
+108                                                        EUROPEAN JOURNAL OF GENERAL DENTISTRY
+109                                                            EUROPEAN JOURNAL OF LEGAL STUDIES
+111                                                                              FAMILY MEDICINE
+112                                                                                 FIRST MONDAY
+113                                                               FISIOTERAPIA & SAÚDE FUNCIONAL
+114                                                                      FORMACIÓN UNIVERSITARIA
+115                                                                    GASTROENTEROLOGY RESEARCH
+116                                                                          GEOAMBIENTE ON-LINE
+117                                                                                GEODIVERSITAS
+118                                                                  GEOGRAFIA ENSINO & PESQUISA
+119                                                                                   GEOGRAFIAS
+120                                                           GEOJOURNAL OF TOURISM AND GEOSITES
+121                                             GERAIS: REVISTA INTERINSTITUCIONAL DE PSICOLOGIA
+122                                                                                GESTIÓN JOVEN
+125                                                                      HEALTH AND HUMAN RIGHTS
+126                                                                            HEPATITIS MONTHLY
+127                                                                         HETEROCYCLIC LETTERS
+128                                                                     HIGHER EDUCATION STUDIES
+129                                                HISTORIA AMBIENTAL LATINOAMERICANA Y CARIBEÑA
+130                                                                            HOLOS ENVIRONMENT
+131                                                                             IARTEM E-JOURNAL
+132                                                                                  IDENTIDADE!
+133                                                                     INDIAN JOURNAL OF CANCER
+134                                                     INDIAN JOURNAL OF CRITICAL CARE MEDICINE
+135                                                 INDIAN JOURNAL OF PATHOLOGY AND MICROBIOLOGY
+136                                                    INDIAN JOURNAL OF PHARMACEUTICAL SCIENCES
+137                                                               INDIAN JOURNAL OF PHARMACOLOGY
+138                                              INDIAN JOURNAL OF SEXUALLY TRANSMITTED DISEASES
+139                                                                                     INFOCOMP
+140                                                                      INFORMACIÓN TECNOLÓGICA
+141                                                INNOVATIVE JOURNAL OF BUSINESS AND MANAGEMENT
+142                                                                           INTERDISCIPLINARIA
+143                                                        INTERNATIONAL BUSINESS AND MANAGEMENT
+144                                                              INTERNATIONAL BUSINESS RESEARCH
+145                                                INTERNATIONAL CARDIOVASCULAR RESEARCH JOURNAL
+147                                  INTERNATIONAL ELECTRONIC JOURNAL OF ENVIRONMENTAL EDUCATION
+149                   INTERNATIONAL JOURNAL OF ACADEMIC RESEARCH IN BUSINESS AND SOCIAL SCIENCES
+150                                 INTERNATIONAL JOURNAL OF ADVANCED BIOTECHNOLOGY AND RESEARCH
+152                        INTERNATIONAL JOURNAL OF ADVANCED RESEARCH IN ARTIFICIAL INTELLIGENCE
+154                              INTERNATIONAL JOURNAL OF ADVANCES IN ENGINEERING AND TECHNOLOGY
+157                                                             INTERNATIONAL JOURNAL OF ALGEBRA
+162                                                 INTERNATIONAL JOURNAL OF BIOLOGICAL SCIENCES
+163                                                             INTERNATIONAL JOURNAL OF BIOLOGY
+164                         INTERNATIONAL JOURNAL OF BIOSCIENCE, BIOCHEMISTRY AND BIOINFORMATICS
+165                                                              INTERNATIONAL JOURNAL OF BOTANY
+166                                             INTERNATIONAL JOURNAL OF BUSINESS ADMINISTRATION
+167                                             INTERNATIONAL JOURNAL OF BUSINESS AND MANAGEMENT
+168                               INTERNATIONAL JOURNAL OF CHEMICAL ENGINEERING AND APPLICATIONS
+169                                                           INTERNATIONAL JOURNAL OF CHEMISTRY
+170                                    INTERNATIONAL JOURNAL OF CIVIL AND STRUCTURAL ENGINEERING
+171                                                 INTERNATIONAL JOURNAL OF CLINICAL PEDIATRICS
+173                                                       INTERNATIONAL JOURNAL OF COMMUNICATION
+174                              INTERNATIONAL JOURNAL OF COMPUTER AND COMMUNICATION ENGINEERING
+175                                 INTERNATIONAL JOURNAL OF COMPUTER AND ELECTRICAL ENGINEERING
+176 INTERNATIONAL JOURNAL OF COMPUTER INFORMATION SYSTEMS AND INDUSTRIAL MANAGEMENT APPLICATIONS
+178                                  INTERNATIONAL JOURNAL OF CONTEMPORARY MATHEMATICAL SCIENCES
+179                                INTERNATIONAL JOURNAL OF CYBER-SECURITY AND DIGITAL FORENSICS
+180                                                      INTERNATIONAL JOURNAL OF DENTAL CLINICS
+181                INTERNATIONAL JOURNAL OF E-EDUCATION, E-BUSINESS, E-MANAGEMENT AND E-LEARNING
+183                                                           INTERNATIONAL JOURNAL OF EDUCATION
+185                                        INTERNATIONAL JOURNAL OF ENDOCRINOLOGY AND METABOLISM
+190                                                 INTERNATIONAL JOURNAL OF ENGLISH LINGUISTICS
+191                                 INTERNATIONAL JOURNAL OF ENVIRONMENTAL AND SCIENCE EDUCATION
+193                                   INTERNATIONAL JOURNAL OF FUTURE COMPUTER AND COMMUNICATION
+194                                           INTERNATIONAL JOURNAL OF GEOMATICS AND GEOSCIENCES
+196                                                      INTERNATIONAL JOURNAL OF GREEN PHARMACY
+197                                                    INTERNATIONAL JOURNAL OF HIGHER EDUCATION
+199                                      INTERNATIONAL JOURNAL OF INNOVATION AND APPLIED STUDIES
+201                                     INTERNATIONAL JOURNAL OF LIFESCIENCE AND PHARMA RESEARCH
+202                                      INTERNATIONAL JOURNAL OF MACHINE LEARNING AND COMPUTING
+203                                                      INTERNATIONAL JOURNAL OF MARINE SCIENCE
+205                                                   INTERNATIONAL JOURNAL OF MEDICAL EDUCATION
+206                                                    INTERNATIONAL JOURNAL OF MEDICAL SCIENCES
+207                                          INTERNATIONAL JOURNAL OF MEDICINE AND PUBLIC HEALTH
+208                                           INTERNATIONAL JOURNAL OF MODELING AND OPTIMIZATION
+209                               INTERNATIONAL JOURNAL OF MODERN EDUCATION AND COMPUTER SCIENCE
+211                               INTERNATIONAL JOURNAL OF MULTIMEDIA AND UBIQUITOUS ENGINEERING
+212                                                        INTERNATIONAL JOURNAL OF NANOMEDICINE
+213                                            INTERNATIONAL JOURNAL OF NETWORKING AND COMPUTING
+214                                      INTERNATIONAL JOURNAL OF ORAL & MAXILLOFACIAL PATHOLOGY
+215                                                      INTERNATIONAL JOURNAL OF OTOLARYNGOLOGY
+219                                                     INTERNATIONAL JOURNAL OF POULTRY SCIENCE
+220                                               INTERNATIONAL JOURNAL OF PSYCHOLOGICAL STUDIES
+221                            INTERNATIONAL JOURNAL OF RESEARCH AND REVIEWS IN APPLIED SCIENCES
+222                                INTERNATIONAL JOURNAL OF SCIENCES: BASIC AND APPLIED RESEARCH
+223                                       INTERNATIONAL JOURNAL OF SECURITY AND ITS APPLICATIONS
+225                                              INTERNATIONAL JOURNAL OF SOCIAL SCIENCE STUDIES
+226                                          INTERNATIONAL JOURNAL OF STATISTICS AND PROBABILITY
+227                                             INTERNATIONAL JOURNAL OF SUPPLY CHAIN MANAGEMENT
+228                                                      INTERNATIONAL JOURNAL OF THERMODYNAMICS
+229                                                             INTERNATIONAL MATHEMATICAL FORUM
+230                              INTERNATIONAL PROCEEDINGS OF ECONOMICS DEVELOPMENT AND RESEARCH
+232                                                               INTERSECCIONES EN ANTROPOLOGÍA
+233                                                                INVERTEBRATE SURVIVAL JOURNAL
+234                                                               INVESTIGACIÓN BIBLIOTECOLÓGICA
+235                                     IOP CONFERENCE SERIES: MATERIALS SCIENCE AND ENGINEERING
+236                                                                IRANIAN JOURNAL OF PEDIATRICS
+237                                                             IRANIAN JOURNAL OF PUBLIC HEALTH
+238                                                         IUCN OTTER SPECIALIST GROUP BULLETIN
+239                                                     JOURNAL OF ADVANCES IN COMPUTER NETWORKS
+240                                                              JOURNAL OF AGRICULTURAL SCIENCE
+241                                                                          JOURNAL OF AGRONOMY
+242                                               JOURNAL OF ANIMAL BEHAVIOUR AND BIOMETEOROLOGY
+243                                                             JOURNAL OF APPLIED BIOTECHNOLOGY
+244                                                           JOURNAL OF APPLIED FLUID MECHANICS
+245                                                     JOURNAL OF ARCHIVES IN MILITARY MEDICINE
+246                                                        JOURNAL OF ASTROPHYSICS AND ASTRONOMY
+247                                                    JOURNAL OF ATHEROSCLEROSIS AND THROMBOSIS
+248                                                            JOURNAL OF BIOCHEMICAL TECHNOLOGY
+249                                                                       JOURNAL OF BIOSCIENCES
+251                                                        JOURNAL OF CLINICAL MEDICINE RESEARCH
+252                                                            JOURNAL OF CONSERVATIVE DENTISTRY
+255                                                    JOURNAL OF EDUCATION AND TRAINING STUDIES
+256                                          JOURNAL OF EDUCATIONAL AND DEVELOPMENTAL PSYCHOLOGY
+257                                                      JOURNAL OF ENDOCRINOLOGY AND METABOLISM
+258                                                    JOURNAL OF ENTOMOLOGY AND ZOOLOGY STUDIES
+260                                         JOURNAL OF ENVIRONMENTAL SCIENCE AND WATER RESOURCES
+261                                             JOURNAL OF EXPERIMENTAL AND INTEGRATIVE MEDICINE
+263                                                                     JOURNAL OF FOOD RESEARCH
+264                                                                          JOURNAL OF GENETICS
+265                                                             JOURNAL OF GEOGRAPHY AND GEOLOGY
+266                                                        JOURNAL OF HEMATOLOGICAL MALIGNANCIES
+267                                                           JOURNAL OF HOSPITAL ADMINISTRATION
+268                                                                   JOURNAL OF IBERIAN GEOLOGY
+269                                                                 JOURNAL OF INTEGER SEQUENCES
+270                                         JOURNAL OF INTERNATIONAL DENTAL AND MEDICAL RESEARCH
+271                                                         JOURNAL OF INTERNATIONAL ORAL HEALTH
+272                                                           JOURNAL OF MANAGEMENT AND STRATEGY
+273                                                               JOURNAL OF MANAGEMENT RESEARCH
+274                                                        JOURNAL OF MATERIALS SCIENCE RESEARCH
+276                                                              JOURNAL OF MATHEMATICS RESEARCH
+277                                                                     JOURNAL OF MEDICAL CASES
+278                      JOURNAL OF MICROWAVES, OPTOELECTRONICS AND ELECTROMAGNETIC APPLICATIONS
+279                                                               JOURNAL OF MOLECULAR SIGNALING
+280                                                                          JOURNAL OF NETWORKS
+281                    JOURNAL OF NUCLEAR PHYSICS, MATERIAL SCIENCES, RADIATION AND APPLICATIONS
+282                                                    JOURNAL OF NURSING EDUCATION AND PRACTICE
+283                                                  JOURNAL OF ORAL AND MAXILLOFACIAL PATHOLOGY
+284                                                           JOURNAL OF PEDIATRIC NEUROSCIENCES
+286                                             JOURNAL OF PHARMACOLOGY AND PHARMACOTHERAPEUTICS
+287                                                                     JOURNAL OF PLANT STUDIES
+288                                                         JOURNAL OF POLITICS IN LATIN AMERICA
+289                                              JOURNAL OF PUBLIC ADMINISTRATION AND GOVERNANCE
+290                                           JOURNAL OF REHABILITATION RESEARCH AND DEVELOPMENT
+291                                                             JOURNAL OF RESEARCH IN DENTISTRY
+292                                                            JOURNAL OF SCIENTOMETRIC RESEARCH
+293                                                                   JOURNAL OF SPEECH SCIENCES
+294                                                              JOURNAL OF STUDIES IN EDUCATION
+295                                                  JOURNAL OF TECHNICAL EDUCATION AND TRAINING
+296                                                             JOURNAL OF VECTOR BORNE DISEASES
+297                                                                JOURNAL OF VETERINARY SCIENCE
+298                                                                 JOURNAL OF YOUNG PHARMACISTS
+299                                                                   KANSAS JOURNAL OF MEDICINE
+300                                            LECTURE NOTES IN ENGINEERING AND COMPUTER SCIENCE
+302                                                                                        LOGOS
+303                                                                          MATHEMATICA AETERNA
+304                                                                                      MAYDICA
+305                                                                         MEDIACIONES SOCIALES
+306                                                     MEDITERRANEAN JOURNAL OF SOCIAL SCIENCES
+307                                                                            MEMORIA AMERICANA
+308                                                                         MENS SANA MONOGRAPHS
+309                                                                             METHODIST REVIEW
+310                                                 MIDDLE EAST AFRICAN JOURNAL OF OPHTHALMOLOGY
+312                                                                           MOLECULAR MEDICINE
+313                                                                      NEOTROPICAL ICHTHYOLOGY
+314                                                                       NEPHRO-UROLOGY MONTHLY
+315                                                                              NEUROLOGY INDIA
+316                                                                     NIGERIAN MEDICAL JOURNAL
+317                                                                         NOVOS ESTUDOS CEBRAP
+318                                                                                      NUCLEUS
+319                                                                            NUCLEUS ANIMALIUM
+320                                                                       NUTRICIÓN HOSPITALARIA
+321                                                                                 OCEANOGRAPHY
+323                                                                                       OPCIÓN
+324                                                                            OPEN AIDS JOURNAL
+325                                                                    OPEN RHEUMATOLOGY JOURNAL
+326                                                                        OPEN VIROLOGY JOURNAL
+327                                                                ORIENTAL JOURNAL OF CHEMISTRY
+328                                                                                    ORINOQUIA
+329                                                                PAKISTAN JOURNAL OF NUTRITION
+330                                                                                PEERSPECTIVES
+331                                                                   PENSAMIENTO CONSTITUCIONAL
+332                                                                                         PERI
+333                                                                       PERIÓDICO TCHÊ QUÍMICA
+334                                                           PESQUISA APLICADA & AGROTECNOLOGIA
+335                                                  PESQUISA OPERACIONAL PARA O DESENVOLVIMENTO
+336                                                                       PHARMACOGNOSY MAGAZINE
+337                                                                       PHARMACOGNOSY RESEARCH
+338                                                                        PHARMACOGNOSY REVIEWS
+339                                                                          POLÍTICA Y SOCIEDAD
+340                                                                                   PRISMA.COM
+341               PROCEEDINGS OF THE INTERNATIONAL ACADEMY OF ECOLOGY AND ENVIRONMENTAL SCIENCES
+342                                                             PSICANÁLISE & BARROCO EM REVISTA
+343                                                                           PSICOLOGIA CLÍNICA
+344                                                                PSICOLOGIA: TEORIA E PESQUISA
+345                                                                         PSYCHOLOGY & SOCIETY
+346                                                              PSYCHOLOGY, SOCIETY & EDUCATION
+347                                                                                  RATIO JURIS
+348                                                                   RELACIONES INTERNACIONALES
+351                                                        REVIEWS ON ADVANCED MATERIALS SCIENCE
+352                                                         REVISTA ANDINA DE ESTUDIOS POLÍTICOS
+353                                            REVISTA ARGENTINA DE ENDOCRINOLOGÍA Y METABOLISMO
+354                                               REVISTA BRASILEIRA DE DESENVOLVIMENTO REGIONAL
+355                                                          REVISTA BRASILEIRA DE FARMACOGNOSIA
+356                                       REVISTA BRASILEIRA DE MEDICINA DE FAMÍLIA E COMUNIDADE
+357                                                      REVISTA CIENCIAS TÉCNICAS AGROPECUARIAS
+358                                                          REVISTA COLOMBIANA DE BIOTECNOLOGÍA
+359                                                              REVISTA COLOMBIANA DE EDUCACIÓN
+360                                                                        REVISTA CONTEMPORÂNEA
+361                                                       REVISTA COSTARRICENSE DE SALUD PÚBLICA
+362                                                                    REVISTA CRÍTICA HISTÓRICA
+363                                                      REVISTA CUBANA DE CIENCIAS INFORMÁTICAS
+364                                                                 REVISTA CUBANA DE INGENIERÍA
+365                                 REVISTA DE ARQUEOLOGÍA HISTÓRICA ARGENTINA Y LATINOAMERICANA
+366                                                                REVISTA DE BIOÉTICA Y DERECHO
+367                                                                  REVISTA DE CIENCIA POLÍTICA
+368                                                              REVISTA DE CIENCIA Y TECNOLOGÍA
+369                                                            REVISTA DE ECONOMIA CONTEMPORÂNEA
+370                                                                  REVISTA DE ECONOMÍA CRÍTICA
+371                                                                REVISTA DE FINANÇAS APLICADAS
+372                                                                   REVISTA DE GESTIÓN PÚBLICA
+373                                        REVISTA DE LA ASOCIACIÓN ESPAÑOLA DE NEUROPSIQUIATRÍA
+374                                                                      REVISTA DE SALUD ANIMAL
+375                                                                REVISTA DE TEORIA DA HISTÓRIA
+376                                                                              REVISTA DEBATES
+377                                    REVISTA DEL CENTRO DE INVESTIGACIÓN. UNIVERSIDAD LA SALLE
+378                                                                  REVISTA DIÁLOGOS DO DIREITO
+379                                                                            REVISTA EDUC@RNOS
+380                                                   REVISTA ELECTRÓNICA DE PORTALESMEDICOS.COM
+381                                                              REVISTA ELETRÔNICA PESQUISEDUCA
+382                                                                   REVISTA ESTUDOS HUM(E)ANOS
+383                                                                    REVISTA ESTUDOS POLÍTICOS
+384                                                                    REVISTA FILOSOFIA CAPITAL
+385                                                          REVISTA IBEROAMERICANA DE EDUCACIÓN
+386                                                                   REVISTA JURÍDICA DO CESUCA
+387                                                         REVISTA LATINOAMERICANA DE FILOSOFÍA
+388                                                 REVISTA MEXICANA DE ASTRONOMÍA Y ASTROFÍSICA
+389                                                       REVISTA MEXICANA DE CIENCIAS AGRÍCOLAS
+390                                                            REVISTA OBSERVACIONES FILOSÓFICAS
+391                                                                   REVISTA PRÁXIS EDUCACIONAL
+392                                                                            REVISTA SAÚDE.COM
+393                                                                           REVISTA UNIANDRADE
+394                                                              REVISTA URUGUAYA DE CARDIOLOGÍA
+395                                                      REVISTA VIRTUAL DE ESTUDOS DA LINGUAGEM
+396                                                                   REVISTA VIRTUAL DE QUÍMICA
+397                                                                                         RSBO
+398                                                                      RURAL AND REMOTE HEALTH
+399                                                                             SCIENTIAE STUDIA
+400                                                         SCIENTIFIC JOURNAL OF ANIMAL SCIENCE
+401                                                    SCIENTIFIC JOURNAL OF BIOLOGICAL SCIENCES
+402                                                    SCIENTIFIC JOURNAL OF VETERINARY ADVANCES
+404                                                                                       SIGMAE
+405                                                             STELLENBOSCH THEOLOGICAL JOURNAL
+406                                                                                     STOMATOS
+407                                                               STUDIES IN AFRICAN LINGUISTICS
+408                                                           STUDIES IN MEDIA AND COMMUNICATION
+409                                                              STUDIES IN SOCIOLOGY OF SCIENCE
+410                                                             SURGICAL NEUROLOGY INTERNATIONAL
+411                                                             SUSTAINABLE AGRICULTURE RESEARCH
+412                                                                   SUSTENTABILIDADE EM DEBATE
+413                                                                              SYNERGIES MONDE
+414                                                                                      SYNESIS
+415                                                                               TEKHNE E LOGOS
+416                                                                TEXAS HEART INSTITUTE JOURNAL
+417                                                  THE ELECTRONIC JOURNAL OF SCIENCE EDUCATION
+418                                                     THE JOURNAL OF ANIMAL AND PLANT SCIENCES
+419                                                                                UNIVERSIDADES
+420                                                                                VIA ATLÂNTICA
+421                                                                           VISION PAN-AMERICA
+422                                                                                   ZOOSYSTEMA
+     N standalone NC estrato.max estrato.min
+1    1      FALSE  0          B4          B4
+2    1      FALSE  0          B4          B4
+3   11      FALSE  2          B3           C
+4    1      FALSE  0          B3          B3
+5    2      FALSE  0          B1          B1
+6    6      FALSE  0          B1          B3
+7    3      FALSE  3           C           C
+9    2      FALSE  0          B2          B3
+11   8      FALSE  6          B4           C
+13  17      FALSE  6          B3           C
+15   5      FALSE  0          B1          B3
+16   1      FALSE  0          A2          A2
+17   7      FALSE  2          A2           C
+21   1      FALSE  0          B4          B4
+22   2      FALSE  0          B1          B2
+27   2      FALSE  2           C           C
+28   3      FALSE  0          B4          B5
+29  13      FALSE  0          B1          B5
+30   1      FALSE  0          B3          B3
+31   3      FALSE  0          B1          B3
+33   1      FALSE  1           C           C
+34   1      FALSE  0          B4          B4
+35   1      FALSE  0          B4          B4
+36   2      FALSE  0          B4          B5
+37   2      FALSE  0          B3          B5
+38   5      FALSE  0          B1          B4
+39   1      FALSE  0          B3          B3
+40  11      FALSE  0          B1          B5
+41   5      FALSE  0          B2          B3
+43   1      FALSE  1           C           C
+44  15      FALSE  0          A2          B4
+45  26      FALSE  8          B1           C
+46   1      FALSE  0          B1          B1
+47   7      FALSE  0          B1          B5
+48   1      FALSE  0          B5          B5
+49   1      FALSE  0          B3          B3
+50   9      FALSE  0          A2          B4
+51   7      FALSE  0          A1          B2
+52   9      FALSE  0          B2          B5
+53   5      FALSE  1          B3           C
+54  39      FALSE  5          A1           C
+55   8      FALSE  1          B2           C
+57   3      FALSE  1          B1           C
+58   3      FALSE  2          B5           C
+59   1      FALSE  0          B3          B3
+60   1      FALSE  1           C           C
+61   3      FALSE  0          B4          B5
+62   1      FALSE  0          B3          B3
+63   9      FALSE  0          B1          B4
+64   5      FALSE  0          B2          B3
+65   3      FALSE  2          B5           C
+66   9      FALSE  0          B1          B4
+67   6      FALSE  2          B3           C
+68   7      FALSE  2          B3           C
+69   7      FALSE  2          B4           C
+70   1      FALSE  0          B3          B3
+71   2      FALSE  0          B1          B3
+72   1      FALSE  0          A2          A2
+73  19      FALSE  0          B1          B5
+74   3      FALSE  0          A2          B5
+75   9      FALSE  1          B1           C
+76  23      FALSE  4          B1           C
+77   2      FALSE  0          A2          B2
+78   5      FALSE  0          A2          B4
+79   1      FALSE  0          B2          B2
+80   1      FALSE  0          B2          B2
+81   2      FALSE  0          B3          B4
+82   1      FALSE  0          B2          B2
+83   1      FALSE  0          B5          B5
+84   1      FALSE  0          B1          B1
+85   4      FALSE  1          B2           C
+86  17      FALSE  0          B1          B4
+87   9      FALSE  0          A2          B5
+88   6      FALSE  1          A1           C
+89   3      FALSE  0          B1          B4
+90   2      FALSE  1          B5           C
+91  12      FALSE  1          A2           C
+92  10      FALSE  0          A2          B4
+93   3      FALSE  2          B4           C
+94   1      FALSE  0          B4          B4
+95   4      FALSE  1          B4           C
+96   1      FALSE  1           C           C
+97   2      FALSE  0          B2          B3
+98   7      FALSE  1          B3           C
+99   1      FALSE  0          B5          B5
+100  1      FALSE  0          B2          B2
+101 13      FALSE  0          B1          B5
+102  2      FALSE  0          B1          B1
+103  1      FALSE  0          A2          A2
+104  5      FALSE  2          B2           C
+105 15      FALSE  0          A2          B4
+106  7      FALSE  1          B1           C
+108  3      FALSE  1          B3           C
+109  1      FALSE  0          B1          B1
+111  1      FALSE  0          B1          B1
+112  4      FALSE  0          A2          B5
+113  5      FALSE  0          B2          B4
+114  3      FALSE  1          A1           C
+115  4      FALSE  1          B1           C
+116  8      FALSE  2          B2           C
+117  1      FALSE  0          B1          B1
+118 12      FALSE  2          B2           C
+119  9      FALSE  1          B2           C
+120  1      FALSE  0          B3          B3
+121  7      FALSE  0          B1          B4
+122  2      FALSE  0          B3          B3
+125  1      FALSE  0          B2          B2
+126  4      FALSE  0          B1          B2
+127  1      FALSE  0          B5          B5
+128  1      FALSE  0          B4          B4
+129  7      FALSE  1          B1           C
+130 13      FALSE  4          B4           C
+131  3      FALSE  1          B1           C
+132  9      FALSE  0          B1          B5
+133  1      FALSE  0          B3          B3
+134  1      FALSE  0          B3          B3
+135  2      FALSE  0          B2          B3
+136  3      FALSE  0          B3          B3
+137  3      FALSE  0          B1          B5
+138  2      FALSE  0          B3          B4
+139  4      FALSE  0          B4          B5
+140  1      FALSE  0          B2          B2
+141  1      FALSE  1           C           C
+142  2      FALSE  0          B1          B4
+143  1      FALSE  0          B5          B5
+144 10      FALSE  2          B1           C
+145  3      FALSE  0          B2          B5
+147  1      FALSE  0          B4          B4
+149  2      FALSE  0          B5          B5
+150  1      FALSE  1           C           C
+152  2      FALSE  1          B4           C
+154  4      FALSE  2          B3           C
+157  3      FALSE  1          B5           C
+162  8      FALSE  0          A1          A2
+163  7      FALSE  4          B4           C
+164  3      FALSE  2          B5           C
+165  3      FALSE  0          B2          B4
+166  4      FALSE  1          B2           C
+167  1      FALSE  0          B5          B5
+168  4      FALSE  1          B4           C
+169  7      FALSE  3          B3           C
+170  4      FALSE  2          B4           C
+171  2      FALSE  0          B4          B5
+173  4      FALSE  0          A1          B3
+174  1      FALSE  0          B5          B5
+175  2      FALSE  1          B5           C
+176  3      FALSE  0          B3          B5
+178  1      FALSE  1           C           C
+179  1      FALSE  1           C           C
+180  1      FALSE  0          B4          B4
+181  4      FALSE  1          B2           C
+183  2      FALSE  0          B3          B4
+185  1      FALSE  0          B3          B3
+190  1      FALSE  0          A2          A2
+191  2      FALSE  2           C           C
+193  3      FALSE  1          B5           C
+194  1      FALSE  1           C           C
+196  5      FALSE  0          B3          B5
+197  2      FALSE  1          B4           C
+199  1      FALSE  0          B5          B5
+201  1      FALSE  1           C           C
+202  2      FALSE  1          B5           C
+203  1      FALSE  1           C           C
+205  3      FALSE  2          B4           C
+206  8      FALSE  0          B1          B5
+207  2      FALSE  1          B5           C
+208  2      FALSE  2           C           C
+209  2      FALSE  1          B2           C
+211  1      FALSE  1           C           C
+212 20      FALSE  0          A1          B3
+213  1      FALSE  0          B5          B5
+214  1      FALSE  0          B4          B4
+215  1      FALSE  0          B4          B4
+219  8      FALSE  0          B2          B4
+220  1      FALSE  0          B4          B4
+221  8      FALSE  5          B3           C
+222  1      FALSE  1           C           C
+223  2      FALSE  2           C           C
+225  1      FALSE  0          B5          B5
+226  3      FALSE  1          B5           C
+227  1      FALSE  0          B3          B3
+228  3      FALSE  0          B2          B4
+229  1      FALSE  1           C           C
+230  2      FALSE  1          B2           C
+232  1      FALSE  0          A2          A2
+233  5      FALSE  0          B1          B5
+234  5      FALSE  0          A1          B5
+235  8      FALSE  4          B3           C
+236  1      FALSE  0          B5          B5
+237  4      FALSE  0          B1          B2
+238  5      FALSE  0          B1          B4
+239  1      FALSE  0          B5          B5
+240 20      FALSE  5          A1           C
+241  4      FALSE  0          B1          B5
+242 11      FALSE  2          B2           C
+243  3      FALSE  1          B4           C
+244  3      FALSE  0          A2          B4
+245  2      FALSE  1          B5           C
+246  1      FALSE  0          B5          B5
+247  4      FALSE  0          B1          B1
+248  2      FALSE  2           C           C
+249  7      FALSE  0          B1          B3
+251  8      FALSE  3          B1           C
+252  4      FALSE  1          B2           C
+255  2      FALSE  0          B5          B5
+256  1      FALSE  0          B5          B5
+257  9      FALSE  3          B2           C
+258  3      FALSE  2          B5           C
+260  5      FALSE  3          B5           C
+261  1      FALSE  0          B5          B5
+263  5      FALSE  1          B3           C
+264  7      FALSE  0          B1          B4
+265  2      FALSE  1          B5           C
+266  1      FALSE  0          B4          B4
+267  3      FALSE  1          B5           C
+268  2      FALSE  0          B1          B3
+269  2      FALSE  0          B3          B3
+270  5      FALSE  1          B3           C
+271  3      FALSE  0          B3          B5
+272  2      FALSE  1          B4           C
+273  3      FALSE  1          B4           C
+274  1      FALSE  0          B4          B4
+276  1      FALSE  0          B5          B5
+277  6      FALSE  3          B4           C
+278  7      FALSE  0          B1          B5
+279  1      FALSE  0          A1          A1
+280  2      FALSE  2           C           C
+281  2      FALSE  1          B5           C
+282  7      FALSE  2          B2           C
+283  4      FALSE  0          B1          B3
+284  1      FALSE  0          B3          B3
+286  1      FALSE  0          B2          B2
+287  3      FALSE  1          B4           C
+288  4      FALSE  0          B1          B3
+289  1      FALSE  0          B4          B4
+290  5      FALSE  0          A1          B3
+291  6      FALSE  3          B5           C
+292  2      FALSE  1          B5           C
+293  1      FALSE  0          B2          B2
+294  1      FALSE  0          B3          B3
+295  1      FALSE  0          B3          B3
+296  7      FALSE  0          B2          B4
+297  6      FALSE  0          A2          B4
+298  8      FALSE  0          B1          B5
+299  1      FALSE  1           C           C
+300  2      FALSE  1          B5           C
+302  5      FALSE  0          B1          B5
+303  1      FALSE  0          B4          B4
+304  3      FALSE  0          B1          B3
+305  3      FALSE  0          B1          B3
+306  3      FALSE  3           C           C
+307  1      FALSE  0          B2          B2
+308  2      FALSE  1          B2           C
+309  1      FALSE  1           C           C
+310  1      FALSE  0          B3          B3
+312  6      FALSE  0          A2          A2
+313 15      FALSE  0          B1          B5
+314  1      FALSE  0          B3          B3
+315  3      FALSE  0          B2          B3
+316  1      FALSE  0          B3          B3
+317 15      FALSE  0          A1          B3
+318 21      FALSE  3          A2           C
+319  5      FALSE  2          B4           C
+320 25      FALSE  0          A2          B3
+321  2      FALSE  0          A1          A2
+323  6      FALSE  0          A2          B3
+324  4      FALSE  0          A2          B3
+325  6      FALSE  0          B1          B4
+326  1      FALSE  0          B5          B5
+327  4      FALSE  0          B3          B4
+328  2      FALSE  0          B1          B5
+329  1      FALSE  0          B4          B4
+330  1      FALSE  0          B5          B5
+331  1      FALSE  0          B2          B2
+332  8      FALSE  0          B2          B4
+333 13      FALSE  1          B1           C
+334  9      FALSE  2          B2           C
+335 12      FALSE  3          B1           C
+336 19      FALSE  0          B1          B5
+337  7      FALSE  0          B1          B5
+338  4      FALSE  0          A2          B5
+339  4      FALSE  0          A2          B1
+340  7      FALSE  2          B3           C
+341  2      FALSE  1          B3           C
+342  7      FALSE  0          B3          B5
+343  9      FALSE  0          A2          B4
+344 15      FALSE  0          A1          B5
+345  3      FALSE  1          B4           C
+346  2      FALSE  0          B2          B5
+347  1      FALSE  0          A2          A2
+348  5      FALSE  0          A1          B3
+351  9      FALSE  0          A2          B3
+352  2      FALSE  0          B4          B4
+353  1      FALSE  0          B4          B4
+354 14      FALSE  2          B2           C
+355 31      FALSE  1          A2           C
+356  2      FALSE  1          B4           C
+357  3      FALSE  1          B5           C
+358  1      FALSE  0          B1          B1
+359  3      FALSE  0          B1          B4
+360 17      FALSE  2          B1           C
+361  1      FALSE  0          B1          B1
+362  8      FALSE  3          B3           C
+363  3      FALSE  1          B2           C
+364  1      FALSE  0          B4          B4
+365  1      FALSE  0          B3          B3
+366  2      FALSE  0          A2          B2
+367  3      FALSE  0          A2          B1
+368  4      FALSE  1          B2           C
+369  8      FALSE  0          B1          B3
+370  1      FALSE  0          B5          B5
+371  5      FALSE  0          B3          B5
+372  3      FALSE  0          B3          B5
+373  2      FALSE  0          B1          B3
+374  4      FALSE  2          B4           C
+375  8      FALSE  0          B2          B4
+376  9      FALSE  0          B1          B4
+377  1      FALSE  0          B5          B5
+378  7      FALSE  4          B4           C
+379  6      FALSE  2          B1           C
+380  1      FALSE  0          B4          B4
+381  1      FALSE  0          B3          B3
+382  4      FALSE  0          B3          B5
+383 10      FALSE  2          B2           C
+384  5      FALSE  2          B4           C
+385 17      FALSE  2          A2           C
+386  5      FALSE  2          B3           C
+387  2      FALSE  0          B1          B3
+388  2      FALSE  0          B1          B2
+389  2      FALSE  0          B4          B4
+390  1      FALSE  0          B2          B2
+391  1      FALSE  0          B1          B1
+392 13      FALSE  6          B4           C
+393 10      FALSE  3          B4           C
+394  1      FALSE  0          B5          B5
+395  9      FALSE  0          B1          B4
+396 30      FALSE  1          A2           C
+397  3      FALSE  0          B3          B5
+398  6      FALSE  0          A1          B3
+399 14      FALSE  1          A2           C
+400  2      FALSE  0          B5          B5
+401  1      FALSE  0          B5          B5
+402  1      FALSE  0          B5          B5
+404  9      FALSE  4          B5           C
+405  1      FALSE  0          B4          B4
+406  3      FALSE  0          B4          B5
+407  1      FALSE  1           C           C
+408  1      FALSE  1           C           C
+409  2      FALSE  0          B3          B5
+410  5      FALSE  0          B2          B2
+411  4      FALSE  1          B4           C
+412 21      FALSE  1          B1           C
+413  1      FALSE  0          B2          B2
+414  8      FALSE  2          B1           C
+415  5      FALSE  0          B3          B5
+416  1      FALSE  0          B2          B2
+417  2      FALSE  0          B3          B3
+418  2      FALSE  0          B2          B2
+419  3      FALSE  2          B5           C
+420  9      FALSE  0          A2          B4
+421  2      FALSE  2           C           C
+422  1      FALSE  0          B2          B2
+> ## Maybe check titles in Beals list which are not in the Whitelist of DOAJ or are in the list of removed of DOAJ
+> 
+> proc.time()
+  usuário   sistema decorrido 
+    7.898     0.137    10.427 
