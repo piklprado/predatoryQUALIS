@@ -1,9 +1,3 @@
----
-title: Home
----
-
-
-
 # Periódicos potencialmente fradulentos no QUALIS
 ### 14 de novembro de 2017
 
@@ -31,6 +25,4 @@ A1, A2, B1 a B5 e C. Um mesmo título pode receber níveis diferentes em diferen
 * [Sobre o QUALIS](https://www.sibi.usp.br/apoio-pesquisador/escrita-publicacao-cientifica/selecao-revistas-publicacao/qualis-periodicos/), da página do Sistema de Bibliotecas da USP.
 
 # Autores
-
-* [Paulo Inácio Prado](http://ecologia.ib.usp.br/let/doku.php?id=engl:prado:start), Depto de Ecologia, Instituto de Biociências, USP. <prado@ib.usp.br>
-* [Roberto André Kraenkel](http://www.ift.unesp.br/users/kraenkel/), Instituto de Física Teórica, UNESP. <kraenkel@ift.unesp.br>
+[![Screenshot](https://github.com/yihui/hugo-xmin/raw/master/images/screenshot.png)](https://xmin.yihui.name)
